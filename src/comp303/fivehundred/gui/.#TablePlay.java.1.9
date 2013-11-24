@@ -1,0 +1,202 @@
+package comp303.fivehundred.gui;
+
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.Box;
+import javax.swing.ImageIcon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+
+import comp303.fivehundred.model.Bid;
+import comp303.fivehundred.util.Card;
+import comp303.fivehundred.util.CardList;
+
+/**
+ * Sets the main stage for the game of 500. Uses components between the GUIListener and the
+ * FHGUI classes to make the game playable as either a human or as different levels of AI.
+ * 
+ * @author Maxim Gorshkov, Dashiel Siegel
+ */
+public class TablePlay extends JPanel
+{
+	// Sets the generated serialID
+	private static final long serialVersionUID = -4841022761731955663L;
+	// Sets the constant for the overlay of cards when hands are shown
+	private static final int OVERLAY = 30;
+	// Sets the constant for the maximum number of cards
+	private static final int MAX_CARDS = 10;
+	// Initialises the observers for actions which take place with cards
+	private static List<GameObserver> aObservers = new ArrayList<GameObserver>();
+	// Initializes the GUIListener for event handling.
+	private GUIListener aGod = null;
+	private CardList aHand = null;
+	private Bid aHumanBid = null;
+
+	/**
+	 * Sets up the main middle stage for the game. This will hold all of the cards which get played,
+	 * discarded, and exchanged over the course of the game.
+	 * 
+	 * @param pGod
+	 * 		The GUIListener. Performs event handling.
+	 */
+	public TablePlay(GUIListener pGod)
+	{
+		// Carries over the layout from FHGUI
+		super(new BorderLayout());
+		
+		// Hooks into GUIListener for event handling.
+		aGod = pGod;
+
+		// Sets the color of the table
+		Color bg = Color.green;
+
+		// Creates the boxes in which we will place each player's tabled cards (played card, deck and bid)
+		Box box1 = Box.createHorizontalBox();
+		Box box2 = Box.createVerticalBox();
+		Box box3 = Box.createHorizontalBox();
+		Box box4 = Box.createVerticalBox();
+
+		// Fills the box for player 1.
+		JLabel cardA = new JLabel(new ImageIcon("src/images/ah.gif"));
+		JLabel cardB = new JLabel(new ImageIcon("src/images/b.gif"));
+		JPanel box1Label = new JPanel();
+		box1Label.add(cardA);
+		box1Label.add(cardB);
+		box1Label.setBackground(bg);
+		box1.add(box1Label);
+
+		// Fills the box for player 2
+		CardPanel lCardPanel2 = new CardPanel(false, 0, OVERLAY);
+
+		lCardPanel2.setBackground(bg);
+		lCardPanel2.setTitle("Player 2 Hand");
+		box2.add(lCardPanel2);
+		ShowPanel lSPanel2 = new ShowPanel();
+		lSPanel2.setBackground(bg);
+		box2.add(lSPanel2);
+
+		// Fills the box for player 2.
+		JLabel card2A = new JLabel(new ImageIcon("src/images/ah.gif"));
+		JLabel card2B = new JLabel(new ImageIcon("src/images/b.gif"));
+		JPanel box2Label = new JPanel();
+		box2Label.add(card2A);
+		box2Label.add(card2B);
+		box2Label.setBackground(bg);
+		box2.add(box2Label);
+
+		// Fills the box for player 3.
+		JLabel card3A = new JLabel(new ImageIcon("src/images/ks.gif"));
+		JPanel box3Label = new JPanel();
+		box3Label.add(card3A);
+		box3Label.setBackground(bg);
+		box3.add(box3Label);
+
+		// Fills the box for player 4.
+		JLabel card4A = new JLabel(new ImageIcon("src/images/ad.gif"));
+		JPanel box4Label = new JPanel();
+		box4Label.add(card4A);
+		box4Label.setBackground(bg);
+		box4.add(box4Label);
+
+		// Fills the center of the table with some text.
+		JPanel center = new JPanel();
+		center.add(new JLabel("THIS IS 500 \n PREPARE TO DIIIIEEE!!!!"));
+		center.setBackground(bg);
+
+		// Adds the boxes and the center table to the actual table.
+		add(box1, BorderLayout.SOUTH);
+		add(box2, BorderLayout.WEST);
+		add(box3, BorderLayout.NORTH);
+		add(box4, BorderLayout.EAST);
+		add(center, BorderLayout.CENTER);
+	}
+
+	/**
+	 * Sets the hand of player 1 (found on the south-most side of the table).
+	 * @param pSouthHand - container for the cardPanel which holds the cards that can be played
+	 */
+	public static void setSouth(JPanel pSouthHand)
+	{
+
+		CardPanel lCardPanel = new CardPanel(true, OVERLAY, 0);
+		lCardPanel.setBackground(Color.LIGHT_GRAY);
+		lCardPanel.setTitle("Player 1 Hand");
+		pSouthHand.add(lCardPanel);
+		aObservers.add(lCardPanel);
+	}
+	/**
+	 * Sets the hand of player 3 (found on the north-most side of the table).
+	 * @param pNorthHand - container for the cardPanel which holds the cards that can be played
+	 */
+	public static void setNorth(JPanel pNorthHand)
+	{
+		CardPanel lCardPanel = new CardPanel(false, OVERLAY, 0);
+		lCardPanel.setBackground(Color.LIGHT_GRAY);
+		lCardPanel.setTitle("Player 3 Hand");
+		pNorthHand.add(lCardPanel);
+		aObservers.add(lCardPanel);
+		
+	}
+	/**
+	 * Sets the hand of player 2 (found on the west-most side of the table).
+	 * @param pWestHand - container for the cardPanel which holds the cards that can be played
+	 */
+	public static void setWest(JPanel pWestHand)
+	{
+		CardPanel lCardPanel = new CardPanel(false, 0, OVERLAY);
+		lCardPanel.setBackground(Color.LIGHT_GRAY);
+		lCardPanel.setTitle("Player 2 Hand");
+		pWestHand.add(lCardPanel);
+		aObservers.add(lCardPanel);
+	}
+	/**
+	 * Sets the hand of player 4 (found on the east-most side of the table).
+	 * @param pEastHand - container for the cardPanel which holds the cards that can be played
+	 */
+	public static void setEast(JPanel pEastHand)
+	{
+		CardPanel lCardPanel = new CardPanel(false, 0, OVERLAY);
+		lCardPanel.setBackground(Color.LIGHT_GRAY);
+		lCardPanel.setTitle("Player 4 Hand");
+		pEastHand.add(lCardPanel);
+		aObservers.add(lCardPanel);
+	}
+
+	/**
+	 * author: Martin Robbilard.
+	 * Notifies the observer that cards were dealt.
+	 */
+	public void notifyDeal()
+	{
+		for (GameObserver o : aObservers)
+		{
+			o.newHand(aHand.clone());
+		}
+	}
+
+	/**
+	 * @author: Martin Robbilard and his "best bud" Dashiel
+	 * Deals the cards to the players in the game.
+	 */
+	public void deal()
+	{
+		aGod.getGameEngine().deal();
+		aHand = aGod.getGameEngine().getHand(0).clone().sort(new Card.ByRankComparator());
+		notifyDeal();
+		bid();
+	}
+	/**
+	 * Starts the bidding phase.
+	 */
+	public void bid()
+	{
+		if (aGod.getGameEngine().bid())
+		{
+			aGod.getGameEngine().bid(aHumanBid);
+		}
+	}
+	
+}

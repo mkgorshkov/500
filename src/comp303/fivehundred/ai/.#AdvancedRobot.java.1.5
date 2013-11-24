@@ -1,0 +1,150 @@
+/**
+ * @Author James McCorriston
+ */
+
+package comp303.fivehundred.ai;
+
+import comp303.fivehundred.model.Bid;
+import comp303.fivehundred.model.Hand;
+import comp303.fivehundred.model.Trick;
+import comp303.fivehundred.model.MemoryList;
+import comp303.fivehundred.util.Card;
+import comp303.fivehundred.util.Card.Suit;
+import comp303.fivehundred.util.CardList;
+import comp303.fivehundred.engine.GameEngine;
+
+/**
+ * An AI robot that plays with advanced strategy.
+ */
+public class AdvancedRobot extends Player
+{
+	//The original hand size of a player.
+	private static final int HANDSIZE = 10;
+	
+	private AdvancedBiddingStrategy aBiddingStrategy = new AdvancedBiddingStrategy();
+	private AdvancedCardExchangeStrategy aCardExchangeStrategy = new AdvancedCardExchangeStrategy();
+	private AdvancedPlayingStrategy aPlayingStrategy = new AdvancedPlayingStrategy();
+	
+	//A memory list that stores a list of all cards that could still be in play.
+	private MemoryList aMemory = new MemoryList();
+	//The index of this advanced AI player, set in the selectBid method.
+	private int aIndex = -1;
+	//An array of the bids that were made this round.
+	private Bid[] aBids;
+	//An array of the team scores where the 0th element is the score of the first
+	//bidder's team and the 1st element is the score of the other team.
+	private int[] aScores = new int[2];
+	
+	/**Overrides the update memory in the Player class.
+	 * Updates the memory of the advanced robot using the pull method to obtain the state
+	 * of the game.
+	 * 
+	 * @param pGame = the instance of GameEngine (Observable).
+	 * @param pObject = null since we are using the pull method.
+	 */
+	public void update(GameEngine pGame, Object pObject)
+	{
+		aMemory.setTrump(pGame.getTrumpSuit());
+		Hand hand = pGame.getHand(aIndex);
+		if(hand.size() == HANDSIZE)
+		{
+			//If the hand size is 10, then removes the cards in the AI player's hand
+			//from the list of cards that other players could have.
+			aMemory = new MemoryList(hand);
+			//Also removes the widow from the MemoryList if this player is the contract
+			//holder.
+			if(aIndex == pGame.getContractHolderIndex())
+			{
+				for(Card card : pGame.getWidow())
+				{
+					if(aMemory.contains(card))
+					{
+						aMemory.remove(card);
+					}
+				}
+			}
+			//Updates the team scores.
+			aScores[(0 + pGame.getDealerIndex()) % 2] = pGame.getScore(0);
+			aScores[(1 + pGame.getDealerIndex()) % 2] = pGame.getScore(1);
+		}
+		//Removes cards in the trick from the list of cards that other players could have.
+		if(pGame.getTrick() != null)
+		{
+			for(Card card : pGame.getTrick())
+			{
+				//TODO: Change this to remove only the last card in the trick to be more
+				//efficient since update is called after each card is played.
+				if(aMemory.contains(card))
+				{
+					aMemory.remove(card);
+				}
+			}
+			if(pGame.getTrick().size()>1)
+			{
+				//A player is void in a suit if they don't follow the leading suit.
+				if(pGame.getTrick().getLast().getEffectiveSuit(pGame.getTrumpSuit()) ==
+						pGame.getTrick().getSuitLed())
+				{
+					
+					updateVoids(pGame.getTrick().getLast().getEffectiveSuit(pGame.getTrumpSuit()), 
+							(pGame.getLeaderIndex() + pGame.getTrick().size() - 1) % 4);
+				}	
+			}
+		}		
+	}
+	
+	@Override
+	public Bid selectBid(Bid[] pPreviousBids, Hand pHand)
+	{
+		aBiddingStrategy.setScores(aScores);
+		return aBiddingStrategy.selectBid(pPreviousBids, pHand);
+	}
+
+	@Override
+	public CardList selectCardsToDiscard(Bid[] pBids, int pIndex, Hand pHand)
+	{
+		//The list of bids and player index are used when determining which cards to discard.
+		aIndex = pIndex;
+		aBids = pBids;
+		return aCardExchangeStrategy.selectCardsToDiscard(pBids, pIndex, pHand);
+	}
+
+	@Override
+	public Card play(Trick pTrick, Hand pHand)
+	{
+		//aPlayingStrategy.setBids(aBids);
+		//aPlayingStrategy.setMemory(aMemory);
+		return aPlayingStrategy.play(pTrick, pHand);
+	}
+	
+	/**
+	 * Helper method that sets the appropriate player/suit combinations to void 
+	 * in the MemoryList.
+	 * @param pSuit = The suit of the most recent card played.
+	 * @param pIndex = The index of the player who is void in the suit.
+	 */
+	private void updateVoids(Suit pSuit, int pIndex)
+	{
+		
+		//If an opponent is the one who is void in pSuit.
+		if(((aIndex + pIndex)%2) == 1)
+		{
+			if(pIndex < 2)
+			{
+				aMemory.setFirstOpponentVoid(pSuit);
+			}
+			else
+			{
+				aMemory.setSecondOpponentVoid(pSuit);
+			}
+		}
+		else
+		{
+			//If the partner is the one who is void in pSuit.
+			if(aIndex != pIndex)
+			{
+				aMemory.setPartnerVoid(pSuit);
+			}
+		}
+	}
+}

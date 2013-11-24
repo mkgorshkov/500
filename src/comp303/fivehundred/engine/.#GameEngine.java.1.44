@@ -1,0 +1,634 @@
+/**
+ * @author Dashiel Siegel, James McCorriston
+ * @author Maxim Gorshkov (Logger)
+ */
+package comp303.fivehundred.engine;
+
+import java.util.ArrayList;
+import comp303.fivehundred.ai.Player;
+import comp303.fivehundred.model.Bid;
+import comp303.fivehundred.model.Hand;
+import comp303.fivehundred.model.Trick;
+import comp303.fivehundred.util.Card;
+import comp303.fivehundred.util.CardList;
+import comp303.fivehundred.util.Deck;
+
+/**
+ * The GameEngine class. Stand-in for GUI. Constructed with 4 PlayerConsolidaters as parameters.
+ */
+public class GameEngine
+{
+	// Enables and disables the logging framework. (True = ON, False = OFF).
+	private static final boolean ENABLE_LOGGING = true;
+
+	// magic numbers >:(
+	private static final int HANDSIZE = 10;
+	private static final int WIDOW_SIZE = 6;
+	private static final int SCORELIMIT = 500;
+	private static final int WINWORTH = 10;
+	private static final int GAMELIMIT = 5000;
+
+	// player stats: each Player is represented by an integer between 0 and 3.
+	// to access a player's stat (eg the hand of player 0): simply access the hand array at index 0,
+	// note: aWins and aScore are arrays of size 2 because scores and wins are team attributes
+	// finally: aLeader, aDeal and aContractWinner simply store the index representing a player
+	private ArrayList<Player> aPlayers = new ArrayList<Player>();
+	private ArrayList<Hand> aHands = new ArrayList<Hand>();
+	private int[] aWins = new int[2];
+	private int[] aGameWins = { 0, 0 };
+	private int[] aScore = new int[2];
+	private int aLeaderIndex = 0;
+	private int aDealerIndex = 0;
+	private int aContractWinner = 0;
+
+	// the deck of cards and the widow
+	private Deck aDeck = new Deck();
+	private Hand aWidow = new Hand();
+
+	// storage for variables relevant to contracts
+	private ArrayList<Bid> aBids = new ArrayList<Bid>(); // stores past bids in a round of bidding
+	private Bid aContract; // stores the winning bid
+	private Trick aTrick; // stores the trick. reset every trick
+
+	// Logging variables.
+	private int aNumTricks = 1; // number of tricks based on wins.
+	private int aNumGames = 1; // number of games
+
+	// Observation variables.
+	private GameStatistics aStats;
+	private Logger aLog;
+	// private Logger aLog;
+
+	// game stats: is game over
+	private boolean aGameOver = false;
+
+	/**
+	 * Constructor for GameEngine. Creates 4 players and 4 hands.
+	 * 
+	 * @param pInteractive
+	 *            = A boolean indicating whether a human is playing (true) or if the game is fully automatic (false).
+	 * */
+	public GameEngine(boolean pInteractive)
+	{
+		Player playerA;
+		// If this game is being played with a human.
+		if (pInteractive)
+		{
+			// Adds a human player.
+			playerA = new Player("human");
+			playerA.setName("Human (team 1)");
+
+		}
+		else
+		{
+			// Adds a robot player.
+			playerA = new Player("basic");
+			playerA.setName("BasicA (team 1)");
+		}
+		playerA.setBuddyIndex(2);
+
+		// The rest of the players will always be AIs
+		Player playerB = new Player("random");
+		playerB.setName("RandoA (team 2)");
+		playerB.setBuddyIndex(3);
+		Player playerC = new Player("basic");
+		playerC.setName("BasicB (team 1)");
+		playerC.setBuddyIndex(0);
+		Player playerD = new Player("random");
+		playerD.setName("RandoB (team 2)");
+		playerD.setBuddyIndex(1);
+
+		// set player fields
+		aPlayers.add(playerA);
+		aPlayers.add(playerB);
+		aPlayers.add(playerC);
+		aPlayers.add(playerD);
+		aHands.add(new Hand());
+		aHands.add(new Hand());
+		aHands.add(new Hand());
+		aHands.add(new Hand());
+
+		// set up observation functionality
+		aStats = new GameStatistics(aPlayers.get(0), aPlayers.get(1), aPlayers.get(2), aPlayers.get(3));
+
+		// Initialises the logger functionality.
+		aLog = new Logger(ENABLE_LOGGING, aPlayers, aDealerIndex);
+	}
+
+	/**
+	 * SETS THE AI TO INTERACTIVE OR AUTOMATIC. NOT DONE.
+	 */
+	// public void aiConfig()
+	// {
+	// }
+
+	/**
+	 * Resets the game after it finishes. In particular, resets Contract and Score[] and isGameOver.
+	 */
+	public void resetGame()
+	{
+		// Logs that the game is over
+		aLog.set("aGameOver", aGameOver);
+
+		// reset the dealer
+		aDealerIndex = (int) Math.random() * 4;
+		// reset hands, bids
+		newRound(false);
+		// reset score
+		for (int i = 0; i < 2; i++)
+		{
+			aScore[i] = 0;
+		}
+
+		// reset isGameOver
+		aGameOver = false;
+	}
+
+	/**
+	 * Starts a new round. In particular, reshuffles the deck, empties the widow, empties all hands, empties bid list,
+	 * resets winning contract, resets the trick, resets the number of tricks won, and finally shifts the dealer forward
+	 * one Player.
+	 * 
+	 * @param pDealerSwitch
+	 *            boolean that toggles if the dealer changes
+	 */
+	public void newRound(boolean pDealerSwitch)
+	{
+
+		aNumTricks = 1; // Reset number of tricks.
+
+		// reset the deck. don't need reset the widow as it is already empty.
+		aDeck.shuffle();
+		// Reinitialises the widow (for the next round after all passing bids).
+		aWidow = new Hand();
+
+		// reset hands. happens when everybody passes and needs their cards re-dealt
+		for (int i = 0; i < 4; i++)
+		{
+			aHands.set(i, new Hand());
+		}
+
+		// reset players
+		for (int i = 0; i < 4; i++)
+		{
+			// Initialises the list of bids.
+			aBids = new ArrayList<Bid>();
+			aContract = null;
+			aTrick = null;
+
+			// reset wins
+			aWins[i % 2] = 0;
+		}
+
+		if (pDealerSwitch)
+		{
+			// Sets dealer to the next player
+			aDealerIndex++;
+			aDealerIndex = aDealerIndex % 4;
+			// Logs that the dealer changed.
+			aLog.set("aDealerIndex", aDealerIndex);
+		}
+
+	}
+
+	/**
+	 * Deals 10 cards each to the players and 6 cards to the widow.
+	 */
+	public void deal()
+	{
+		// repeat 10 times: draw 4 cards from the deck and place one into each players hand
+		for (int i = 0; i < HANDSIZE; i++)
+		{
+			// Deals to the left of the dealer in a clockwise manner.
+			for (int j = aDealerIndex + 1; j < aDealerIndex + 1 + 4; j++)
+			{
+				aHands.get(j % 4).add(aDeck.draw());
+			}
+		}
+
+		// for the remaining 6 cards: draw them from the deck and place into widow
+		for (int i = 0; i < WIDOW_SIZE; i++)
+		{
+			aWidow.add(aDeck.draw());
+		}
+
+		// Send the current hands and the widow to the logger.
+		aLog.set("aHands", aHands);
+		aLog.set("aWidow", aWidow);
+	}
+
+	/**
+	 * Handles the bidding stage. After each player has a chance to bid/pass... if everybody passed: returns false and
+	 * the contract is set to a passing bid. otherwise: whomever had the highest bid becomes the leader (plays first)
+	 * and contract winner
+	 * 
+	 * @pre Each of the four players' hands have 10 cards in them.
+	 * @return True if a human player made a bid, false if all bids were made by AIs.
+	 */
+	public boolean bid()
+	{
+		assert aHands.get(0).size() == HANDSIZE;
+		assert aHands.get(1).size() == HANDSIZE;
+		assert aHands.get(2).size() == HANDSIZE;
+		assert aHands.get(3).size() == HANDSIZE;
+
+		Bid newBid;
+
+		// Bids are made in order starting with the player to the left of the dealer.
+		for (int i = aDealerIndex + 1; i < aDealerIndex + 4 + 1; i++)
+		{
+			if (aPlayers.get(i % 4).isHuman())
+			{
+				// Signals that a human player has made a bid, returns out of GameEngine.
+				return true;
+			}
+			else
+			{
+				// Constructs a bid for the current AI player and adds it to aBids.
+				newBid = aPlayers.get(i % 4).selectBid(aBids.toArray(new Bid[aBids.size()]), aHands.get(i % 4));
+				aBids.add(newBid);
+			}
+		}
+
+		// find the highest non-passing bid. uses it to set up the first trick of the contract
+		aContract = Bid.max(aBids.toArray(new Bid[aBids.size()]));
+		System.out.println();
+
+		// Sets up the first trick, the leader index and the contract winner index for the
+		// new round.
+		setupRound();
+
+		// Signals that all 4 bids were made by AI players.
+		return false;
+	}
+
+	/**
+	 * This method adds the bid made by the human player to the current list of bids and completes the round of AI
+	 * bidding if necessary.
+	 * 
+	 * @param pPlayerBid
+	 *            = The bid made by the human player.
+	 */
+	public void bid(Bid pPlayerBid)
+	{
+		// Adds the human players bid to the list of bids.
+		aBids.add(pPlayerBid);
+
+		// Completes the round of AI bidding if necessary.
+		Bid newBid;
+		for (int i = aBids.size(); i < 4; i++)
+		{
+			// Constructs a bid for the current AI player and adds it to aBids.
+			newBid = aPlayers.get(i).selectBid(aBids.toArray(new Bid[aBids.size()]), aHands.get(i));
+			aBids.add(newBid);
+		}
+
+		// find the highest non-passing bid. uses it to set up the first trick of the contract
+		aContract = Bid.max(aBids.toArray(new Bid[aBids.size()]));
+
+		// Sets up the first trick, the leader index and the contract winner index for the
+		// new round.
+		setupRound();
+
+	}
+
+	/**
+	 * Makes the contract winner exchange his cards. Adds 6 from widow to contract winners hand and they discard 6 cards
+	 * from their hand.
+	 */
+	public void exchange()
+	{
+		CardList unwanted = new CardList();
+
+		// moves the 6 cards from the widow to leader hand. removes each card from the widow as well.
+		for (int j = 0; j < WIDOW_SIZE; j++)
+		{
+			aHands.get(aLeaderIndex).add(aWidow.getFirst());
+			aWidow.remove(aWidow.getFirst());
+		}
+
+		// the leader chooses 6 cards to discard, then discards them
+		unwanted = aPlayers.get(aLeaderIndex).selectCardsToDiscard(aBids.toArray(new Bid[aBids.size()]), aLeaderIndex,
+				aHands.get(aLeaderIndex));
+		for (Card w : unwanted)
+		{
+			aHands.get(aContractWinner).remove(w);
+		}
+
+		// Log which cards got discarded and which cards are left in players' hands.
+		aLog.set("aDiscards", unwanted);
+		aLog.set("aExchange", aHands);
+	}
+
+	/**
+	 * Makes the contract winner exchange his cards. Adds 6 from widow to contract winners hand and they discard 6 cards
+	 * from their hand.
+	 * 
+	 * @param pToDiscard
+	 *            = A CardList representing the cards that the human Player chose to discard.
+	 */
+	public void exchange(CardList pToDiscard)
+	{
+		for (Card w : pToDiscard)
+		{
+			// The human player is always in the 0th index.
+			aHands.get(0).remove(w);
+		}
+
+		// Log which cards got discarded and which cards are left in players' hands.
+		aLog.set("aDiscards", pToDiscard);
+		aLog.set("aExchange", aHands);
+	}
+
+	/**
+	 * Play the trick. Each player plays a card. The team that plays the highest card gets a trick win and the player
+	 * that plays the highest card becomes the leader for the next trick (assuming there is another trick in this
+	 * round).
+	 * 
+	 * @return Returns true if a human player played a card.
+	 */
+	public boolean playTrick()
+	{
+
+		// for each player: have AI decide which card to play based on hand and trick
+		// add that card to the trick
+		// then remove that card from the hand
+		Card cardToPlay;
+		for (int i = aLeaderIndex; i < aLeaderIndex + 4; i++)
+		{
+			if (aPlayers.get(i % 4).isHuman())
+			{
+				return true;
+			}
+			// choose the card to play
+			cardToPlay = aPlayers.get(i % 4).play(aTrick, aHands.get(i % 4));
+
+			// play that card
+			// TODO: Players cannot access the card after this point. when they have perfect memory,
+			// we will have to save the cards somewhere to keep track.
+			aTrick.add(cardToPlay);
+			aHands.get(i % 4).remove(cardToPlay);
+		}
+
+		// Performs necessary logging and statistic for the current trick and then sets up
+		// a new trick.
+		endTrick();
+
+		// Signals to the caller that all 4 cards were played by AI players.
+		return false;
+	}
+
+	/**
+	 * Plays the card chosen by the human player and completes the round of AI play if necessary.
+	 * 
+	 * @param pHumanPlay
+	 *            = The card to be played as chosen by the human player.
+	 */
+	public void playTrick(Card pHumanPlay)
+	{
+		// Plays the humans card.
+		// Adds the human card to the trick.
+		aTrick.add(pHumanPlay);
+		aHands.get((aLeaderIndex + aTrick.size() - 1) % 4).remove(pHumanPlay);
+
+		Card cardToPlay;
+		for (int i = aTrick.size(); i < 4; i++)
+		{
+			// Selects the card to be played by the AI player.
+			cardToPlay = aPlayers.get((i + aLeaderIndex) % 4).play(aTrick, aHands.get((i + aLeaderIndex) % 4));
+
+			// Plays the card and removes it from the hand of the player who played it.
+			aTrick.add(cardToPlay);
+			aHands.get((i + aLeaderIndex) % 4).remove(cardToPlay);
+		}
+
+		// Performs necessary logging and statistic for the current trick and then sets up
+		// a new trick.
+		endTrick();
+	}
+
+	/**
+	 * Checks if the contract winner has enough tricks won to satisfy the contract. if so: award him value of the
+	 * contract else: dock him the value of the contract and award the other team a total of: (10pts * number tricks
+	 * won) Finally, checks to see if any team has won or lost the game yet. If so, sets game to over.
+	 */
+	public void computeScore()
+	{
+
+		// checks number of tricks won of contract winner, doles out points accordingly
+		if (aWins[aContractWinner % 2] >= aContract.getTricksBid())
+		{
+			aScore[aContractWinner % 2] += aContract.getScore();
+
+			// increment OSTAT aContractsMade and calculate new OSTAT aScoreForStats for winner and buddy
+			aStats.get("aContractsMade").addTo(aContractWinner, 1);
+			aStats.get("aScore").addTo(aContractWinner, aContract.getScore());
+			aStats.get("aScore").addTo(aPlayers.get(aContractWinner).getBuddyIndex(), aContract.getScore());
+			
+			// Logs the current score for the players.
+			aLog.set("aCrtScore", aScore);
+
+		}
+		else
+		{
+			aScore[aContractWinner % 2] -= aContract.getScore();
+			aScore[(aContractWinner + 1) % 2] += WINWORTH * aWins[(aContractWinner + 1) % 2];
+
+			// calculate new OSTAT aScoreForStats for winner and buddy
+			aStats.get("aScore").addTo(aContractWinner, -aContract.getScore());
+			aStats.get("aScore").addTo(aPlayers.get(aContractWinner).getBuddyIndex(), -aContract.getScore());
+			aStats.get("aScore").addTo((aContractWinner + 1) % 2, WINWORTH * aWins[(aContractWinner + 1) % 2]);
+			aStats.get("aScore").addTo(aPlayers.get((aContractWinner + 1) % 2).getBuddyIndex(),
+					WINWORTH * aWins[(aContractWinner + 1) % 2]);
+			
+			// Logs the current score for the players.
+			aLog.set("aCrtScore", aScore);
+		}
+
+		// check scores: if someone's score is out-of-limit and he is also the leader, the game is over
+		if (aScore[aContractWinner % 2] >= SCORELIMIT)
+		{
+			// increment OSTAT aGamesWon, print OSTATS and set aGameOver to true
+			aStats.get("aGamesWon").addTo(aContractWinner, 1);
+			aStats.get("aGamesWon").addTo(aPlayers.get(aContractWinner).getBuddyIndex(), 1);
+			aGameOver = true;
+			aGameWins[aContractWinner % 2]++;
+			aNumGames++;
+		}
+		else if (aScore[aContractWinner % 2] <= -SCORELIMIT)
+		{
+			// increment OSTAT aGamesWon, print OSTATS and set aGameOver to true
+			aStats.get("aGamesWon").addTo((aContractWinner + 1) % 2, 1);
+			aStats.get("aGamesWon").addTo(aPlayers.get((aContractWinner + 1) % 2).getBuddyIndex(), 1);
+			aGameOver = true;
+			aGameWins[(aContractWinner + 1) % 2]++;
+			aNumGames++;
+		}
+		else if (aNumGames == GAMELIMIT)
+		{
+			aStats.printStatistics();
+		}
+		else
+		{
+			if(!ENABLE_LOGGING){
+			System.out.println("simulating game " + aNumGames + ": \t" + aPlayers.get(0).getName() + "'s team has "
+					+ aGameWins[0] + " wins, " + aPlayers.get(1).getName() + "'s team has " + aGameWins[1] + " wins");
+			}
+		}
+
+		aLog.set("aScore", aScore);
+	}
+
+	/**
+	 * Used to determine if all players have passed.
+	 * 
+	 * @pre At least one bid has been made.
+	 * @return if all the players have passed
+	 */
+	public boolean allPasses()
+	{
+		assert aBids.size() > 0;
+		// if the max bid is a pass then everyone passed
+		// Log that the game is over
+		aLog.set("aGameOver", aGameOver);
+		return Bid.max(aBids.toArray(new Bid[aBids.size()])).isPass();
+	}
+
+	/**
+	 * @return The current list of bids made.
+	 */
+	public Bid[] getBids()
+	{
+		return aBids.toArray(new Bid[aBids.size()]);
+	}
+
+	/**
+	 * @return The player who made the contract (the highest bid).
+	 */
+	public Player getContractHolder()
+	{
+		return aPlayers.get(aContractWinner);
+	}
+
+	/**
+	 * @return The list of cards in the widow.
+	 * @pre aWidow.size() == 6
+	 */
+	public Hand getWidow()
+	{
+		assert aWidow.size() == WIDOW_SIZE;
+		return aWidow;
+	}
+
+	/**
+	 * @param pPlayerIndex
+	 *            = the index of the player whose hand should be returned.
+	 * @pre aHands.get(i).size() > 0
+	 * @return The hand of the player of index pPlayerIndex.
+	 */
+	public Hand getHand(int pPlayerIndex)
+	{
+		assert aHands.get(pPlayerIndex).size() > 0;
+		return aHands.get(pPlayerIndex);
+	}
+
+	/**
+	 * Sets aGameOver to true or false.
+	 * 
+	 * @param pVal
+	 *            the value to set
+	 */
+	public void setGameOver(boolean pVal)
+	{
+		aGameOver = pVal;
+	}
+
+	/**
+	 * Returns the state of aGameOver.
+	 * 
+	 * @return aGameOver the state of aGameOver
+	 */
+	public boolean isGameOver()
+	{
+		return aGameOver;
+	}
+
+	/**
+	 * Returns the score of a player given the player index.
+	 * 
+	 * @param pPlayerIndex
+	 *            - Index of the player of which you would like to know the score.
+	 * @return The score of player at pPlayerIndex.
+	 */
+	public int getScore(int pPlayerIndex)
+	{
+		return aScore[pPlayerIndex % 2];
+	}
+	
+	/**
+	 * This method is called when a round of bidding ends with at least one non-passing bid. This method creates the
+	 * first trick for the new round and sets the index of the contract winner and the index of the leader for the first
+	 * trick.
+	 * 
+	 * @pre aContract is not null.
+	 */
+	private void setupRound()
+	{
+		assert aContract != null;
+
+		if (!aContract.isPass())
+		{
+			// Creates the first trick.
+			aTrick = new Trick(aContract);
+
+			// set the leader and contract winner to index of highest bidder
+			for (int i = 0; i < 4; i++)
+			{
+				if (aBids.get(i) == aContract)
+				{
+					aLeaderIndex = (i + aDealerIndex + 1) % 4;
+					aContractWinner = (i + aDealerIndex + 1) % 4;
+					System.out.println(aContractWinner);
+				}
+			}
+
+			// increment OSTAT aContractsWon
+			aStats.get("aContractsWon").addTo(aContractWinner, 1);
+
+			// Log the bids that all of the players made.
+			aLog.set("aContractWinner", aContractWinner);
+			aLog.set("aContract", aContract);
+			aLog.set("aBids", aBids.toArray(new Bid[aBids.size()]));
+		}
+	}
+
+	/**
+	 * 
+	 * @pre The trick must have exactly 4 cards in it.
+	 */
+	private void endTrick()
+	{
+		assert aTrick.size() == 4;
+
+		// Logs what all of the players have played.
+		aLog.set("aCardsPlayed", aTrick.clone());
+
+		// After every player has played: awards a trick win to the team that played
+		// the highest card. Increment numTricks for Logging.
+		aWins[(aTrick.winnerIndex() + aLeaderIndex) % 2] += 1;
+		aNumTricks++;
+
+		// increment OSTAT aTricksWon
+		aStats.get("aTricksWon").addTo(aTrick.winnerIndex(), 1);
+
+		// Sets the leader of the following trick to the winner of this trick. Then resets
+		// the trick object.
+		aLeaderIndex = (aTrick.winnerIndex() + aLeaderIndex) % 4;
+		// Logs the new leader.
+		aLog.set("aLeaderIndex", aLeaderIndex);
+		// Logs what everyone has played
+		aLog.set("aTrick", aTrick);
+
+		aTrick = new Trick(aContract);
+	}
+}

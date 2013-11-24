@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<fileset-config file-format-version="1.2.0" simple-config="true" sync-formatter="false">
+  <local-check-config name="COMP 303 Checks" location="COMP303-checks.xml" type="project" description="Style rules mandatory for the COMP 303 project.">
+    <additional-data name="protect-config-file" value="false"/>
+  </local-check-config>
+  <fileset name="all" enabled="true" check-config-name="COMP 303 Checks" local="true">
+    <file-match-pattern match-pattern="." include-pattern="true"/>
+  </fileset>
+  <filter name="FilesFromPackage" enabled="true">
+    <filter-data value="src/comp303/fivehundred/gui"/>
+    <filter-data value="tests"/>
+  </filter>
+</fileset-config>

@@ -1,0 +1,914 @@
+package comp303.fivehundred.gui;
+
+import java.awt.CardLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Scanner;
+
+import javax.swing.JOptionPane;
+
+import comp303.fivehundred.ai.AdvancedRobot;
+import comp303.fivehundred.ai.BasicRobot;
+import comp303.fivehundred.ai.HumanPlayer;
+import comp303.fivehundred.ai.Player;
+import comp303.fivehundred.ai.RandomRobot;
+import comp303.fivehundred.engine.GameEngine;
+import comp303.fivehundred.engine.GameStatistics;
+import comp303.fivehundred.engine.Logger;
+import comp303.fivehundred.model.*;
+import comp303.fivehundred.util.*;
+
+/**
+ * GUI handler for ActionListener. Takes the events that are specified by getActionCommand() and performs the action
+ * which is intended.
+ * 
+ */
+public class GUIListener implements ActionListener
+{
+	// Sets whether logger is enabled for this session
+	private final boolean aLoggingEnabled = false;
+
+	// Defines the logger
+	private Logger aLogs;
+
+	// The GameEngine Object
+	private GameEngine aGameEngine = null;
+
+	// The GUI attached to this listener.
+	private FHGUI aGUI;
+
+	// Game Settings
+	// Sets the default location for the logger output.
+	private String aLoggerLocation = "miscFiles/transcript.log";
+	// Sets the default location for the statistics output.
+	private String aStatsLocation = "miscFiles/stats.txt";
+	// Sets the default location for the statistics output.
+	private String aShortLogLocation = "miscFiles/log.txt";
+
+	private boolean aAutoMode = false;
+	private int aTableView = 0;
+	
+	private GameStatistics aStats;
+
+	// Sets the writer for when the old log file gets copied
+	private FileWriter aFstream;
+
+	// Player Settings
+	private ArrayList<String> aPlayerNames = new ArrayList<String>();
+	private ArrayList<String> aPlayerTypes = new ArrayList<String>();
+
+
+	// Keeps track of the current state of play: 0 = bidding, 1 = exchanging, 2 = playing.
+	private int aGamePhase = 0;
+
+	// Constructor
+	/**
+	 * Constructor for the GUIListener.
+	 * @param pGUI
+	 * 		The main constructor method.
+	 */
+	public GUIListener()
+	{
+		super();
+	}
+
+	// Based on the signature in getActionCommand() branches to action which needs to be performed
+	/**
+	 * Performs event-handling for all clickable objects. Selects an action to perform based on pEvent.
+	 * 
+	 * @param pEvent
+	 *            The event that triggers this method being called.
+	 */
+	public void actionPerformed(ActionEvent pEvent)
+	{
+		aGUI.getLogLine().refresh();
+		
+		// Flips the table view forward 1. Doing this wraps around the table card-list.
+		if (pEvent.getActionCommand().equals("Change Table View"))
+		{
+			jumpToView(++aTableView % 2);
+			System.out.println("Change Table View");
+		}
+
+		// Runs the game in automatic mode, slow enough to comprehend.
+		else if (pEvent.getActionCommand().equals("Toggle Automatic Mode"))
+		{
+			toggleAutoMode();
+			System.out.println("Toggle Automatic Mode: " + getAutoMode());
+		}
+
+		// Exits the program.
+		else if (pEvent.getActionCommand().equals("Exit"))
+		{
+			System.exit(0);
+		}
+
+		// Returns the player to TableSetup.
+		else if (pEvent.getActionCommand().equals("Return To Setup"))
+		{
+			jumpToView(0);
+			System.out.println("Return To Setup");
+		}
+
+		// Returns the player to TableSetup and resets all the fields.
+		else if (pEvent.getActionCommand().equals("New Game"))
+		{
+			//Makes all buttons on the table invisible.
+			aGUI.getPlayTable().allButtonsOff();
+			//Removes any displayed cards from the table.
+			for(int i = 0; i<4; i++)
+			{
+				aGUI.getPlayTable().setSpot(i, null);
+			}
+			aGUI.getPlayTable().setHandTrump(null);
+			jumpToBlankSetup();
+		}
+
+		// Returns the player to TableSetup and resets all the fields.
+		else if (pEvent.getActionCommand().equals("Reset Stats"))
+		{
+			// Clears the stats file
+			clearFile(aStatsLocation);
+
+			// Refreshses the text box in TableStats
+			aGUI.getSetupMenu().refreshStatBox(this);
+
+			// TODO: should also reset the gameEngine and GameStatistics
+
+			// Prints that we just reset the stats.
+			System.out.println("Reset Stats");
+		}
+
+		// Reads the player names and types from TableSettings. Stores them, creates a GameObject, and jumps to
+		// TablePlay.
+		else if (pEvent.getActionCommand().equals("Setup New Game"))
+		{			
+			// Sets player names and types from TableSetup specifications.
+			aPlayerNames = aGUI.getSetupMenu().fillPlayerNames();
+			aPlayerTypes = aGUI.getSetupMenu().fillPlayerTypes();
+			
+			setupNewGame();
+			jumpToView(1);
+			aGUI.getSetupMenu().setGameHasBegun(true);
+			
+			
+			if (aGameEngine.getPlayer(0).isHuman())
+			{
+				aAutoMode = false;
+			}
+			else
+			{
+				aAutoMode = true;
+			}
+
+			// Sets up the new game and jumps to TablePlay.
+			if (!aAutoMode)
+			{
+				// Begins running the game.
+				runInteractiveGame();
+			}
+			
+			aGUI.getPlayTable().updatePlayerNames(aPlayerNames);
+		}
+
+		// Changes the players without restarting the game. 
+		else if (pEvent.getActionCommand().equals("Edit Players"))
+		{
+			// First checks if the game has begun (if it hasn't, performing this action will result in an exception)
+			if (!aGUI.getSetupMenu().getGameHasBegun())
+			{
+				JOptionPane.showMessageDialog(null, "Cannot edit players until you have created a game.", "Error", 1);
+				System.out.println("Edit Players (Failure)");
+			}
+			// Checks if we are switching to or from a human. If so, ignores the change.
+			else if ("Human".equals(aPlayerTypes.get(0)) || "Human".equals(aGUI.getSetupMenu().fillPlayerTypes().get(0)))
+			{
+				JOptionPane.showMessageDialog(null, "You cannot change to or from a human player.", "Error", 1);
+				System.out.println("Edit Players (Failure)");
+			}
+			// If neither of the two errors above occurred, performs the event.
+			else if (!"Human".equals(aPlayerTypes.get(0)) && !"Human".equals(aGUI.getSetupMenu().fillPlayerTypes().get(0)))
+			{
+				aPlayerTypes = aGUI.getSetupMenu().fillPlayerTypes();
+				editPlayers();
+				System.out.println("Edit Players (Success)");
+			}
+		}
+
+		// Change the logger location.
+		else if (pEvent.getActionCommand().equals("Change Log Location"))
+		{
+			changeLogLocation();
+			System.out.println("Change Log Location");
+		}
+
+		else if (pEvent.getActionCommand().equals("Bid"))
+		{
+			Bid aBid = aGUI.getPlayTable().getHumanBid();
+			humanBid(aBid);
+		}
+		else if(pEvent.getActionCommand().equals("Pass"))
+		{
+			humanBid(new Bid());
+		}
+		else if (pEvent.getActionCommand().equals("Exchange"))
+		{
+			// Gets the list of cards selected for discard by the human. TODO: currently 
+			//this is handled by a random robot, should be handled by actual selection.
+			humanExchange();
+		}
+		else if(pEvent.getActionCommand().equals("Play"))
+		{
+			if(aGUI.getPlayTable().numSelected() == 1)
+			{
+				humanPlay(aGUI.getPlayTable().selectedCards().getFirst());
+			}
+			else
+			{
+				System.out.println("Please select a card.");
+			}
+		}
+		else if(pEvent.getActionCommand().equals("Next Trick"))
+		{
+			aGUI.getPlayTable().setButtonVisibility("Next Trick", false);
+			setLeaderChip();
+			robotPlay();
+		}
+		else if(pEvent.getActionCommand().equals("End Round"))
+		{
+			//Makes all buttons on the table invisible.
+			aGUI.getPlayTable().allButtonsOff();
+			//Removes the card visuals from the table.
+			aGUI.getPlayTable().clearTable();
+			runInteractiveGame();
+			setDealerChip();
+		}
+
+		else
+		{
+			System.out.println("Command \"" + pEvent.getActionCommand() + "\" is not recognized!");
+		}
+	}
+
+	/**
+	 * Handles the human play on to the trick. The card selection is made in CardPanel (the
+	 * action is handled in CardPanel as well) and this method is called from there.
+	 * 
+	 * @param pCard The card chosen to be played.
+	 */
+	private void humanPlay(Card pCard)
+	{
+		if (isValidPlay(pCard))
+		{
+			//Sets the index to the leader of the trick.
+			int index = (4 - aGameEngine.getTrick().size()) % 4;
+			aGUI.getPlayTable().setButtonVisibility("Play", false);
+			aGameEngine.playTrick(pCard);
+			updateScore();
+			//Discards cards from the hand graphics.
+			aGUI.getPlayTable().discardFromPanel(pCard);
+			aGUI.getPlayTable().notifyHandGraphics(aAutoMode);
+			aGamePhase = 0;
+			aGUI.getPlayTable().setGameStage(aGamePhase);
+			
+			CardList cards = (CardList)aGameEngine.getTrick();
+
+			for(Card card : cards)
+			{
+				aGUI.getPlayTable().setSpot(index, card);
+				index = (index + 1) % 4;
+			}
+			if(aGameEngine.getHand(0).size() == 0)
+			{
+				aGUI.getPlayTable().setButtonVisibility("End Round", true);
+			}	
+			else
+			{
+				aGUI.getPlayTable().setButtonVisibility("Next Trick", true);
+				aGUI.getLogLine().refresh();
+				//robotPlay();
+			}
+		}
+		else
+		{
+			JOptionPane.showMessageDialog(null, "Illegal move. Please play a different card.", "Error", 1);
+		}
+		
+		//TODO: disable card clicking
+	}
+
+	/**
+	 * Updates the score in the status bar from GameEngine.
+	 */
+	private void updateScore()
+	{
+		int team1Score = aGameEngine.getScore(0) + aGameEngine.getScore(2);
+		int team2Score = aGameEngine.getScore(1) + aGameEngine.getScore(3);
+		String newScore = "Team 1: " + team1Score + "\t Team 2: "  + team2Score;
+		System.out.println(newScore);
+		aGUI.getScore().setText(newScore);
+	}
+
+	/**
+	 * Handles robot playing.
+	 */
+	private void robotPlay()
+	{
+		//Removes the card visuals from the table.
+		aGUI.getPlayTable().clearTable();
+		
+		aGamePhase = 0;
+		aGUI.getPlayTable().setGameStage(aGamePhase);
+		if (aGameEngine.playTrick())
+		{
+			updateScore();
+		}
+		aGUI.getPlayTable().notifyHandGraphics(aAutoMode);
+		
+		CardList cards = (CardList)aGameEngine.getTrick();
+		
+		int index = aGameEngine.getLeaderIndex();
+		for(Card card : cards)
+		{
+			aGUI.getPlayTable().setSpot(index, card);
+			index = (index + 1) % 4;
+		}
+
+		if(!aAutoMode)
+		{
+			aGamePhase = 2;
+			aGUI.getPlayTable().setGameStage(aGamePhase);
+			aGUI.getLogLine().refresh();
+			aGUI.getPlayTable().setButtonVisibility("Play", true);
+			
+		}
+		else
+		{
+			
+		}
+	}
+	
+	private boolean isValidPlay(Card pCard)
+	{
+		return aGameEngine.getHand(0).playableCards(aGameEngine.getTrick().getSuitLed(),
+				aGameEngine.getTrick().getTrumpSuit()).contains(pCard);
+	}
+
+	/**
+	 * Handles human bidding when applicable (can only be called by the Human Bid button in TablePlay, which is 
+	 * only visible when human bidding is applicable.
+	 * 
+	 * @param pBid
+	 *            The Human's Bid.
+	 */
+	private void humanBid(Bid pBid)
+	{
+		if (isValidBid(pBid))
+		{
+			aGameEngine.bid(pBid);
+			System.out.println("it was! here is the list of all player bids: " + aGameEngine.getBids()[0].toString() + 
+					aGameEngine.getBids()[1].toString() + aGameEngine.getBids()[2].toString() +
+					aGameEngine.getBids()[3].toString());
+			aGUI.getPlayTable().setButtonVisibility("Bid", false);
+			aGUI.getPlayTable().setButtonVisibility("Pass", false);
+			
+			//Checks if a contract has been made.
+			if (aGameEngine.allPasses())
+			{
+				aGameEngine.newRound(false);
+				robotBids();
+			}
+			else
+			{
+				aGamePhase = 1;
+				updateContractInfo();
+				aGUI.getPlayTable().setHandTrump(aGameEngine.getTrumpSuit());
+				aGUI.getPlayTable().setCardPanel(aGameEngine.getHand(0));
+				
+				//If the human won the contract, wait for them to decide which cards to exchange.
+				if(aGameEngine.getContractHolderIndex() == 0)
+				{
+					aGUI.getPlayTable().setGameStage(aGamePhase);
+					aGUI.getPlayTable().setButtonVisibility("Exchange", true);
+				}
+				//If one of the robots won the contract, they exchange now. Once the exchanging is complete, starts play.
+				else
+				{
+					aGameEngine.exchange();
+					setLeaderChip();
+					robotPlay();
+				}
+			}
+		}
+		else
+		{
+			JOptionPane.showMessageDialog(null, "Illegal bid. Try again!", "Error", 1);
+		}
+	}
+	
+	
+   /** 
+ 	* Updates the Contract Display in TablePlay.
+ 	*/
+	private void updateContractInfo()
+	{
+		if (aGameEngine.getBids()[aGameEngine.getContractHolderIndex()].isPass())
+		{
+			return;
+		}
+		String toSet = "Team ";
+		toSet += aGameEngine.getContractHolderIndex()%2;
+		toSet += " has the contract: ";
+		toSet += aGameEngine.getBids()[aGameEngine.getContractHolderIndex()];
+		toSet += " worth ";
+		toSet += aGameEngine.getBids()[aGameEngine.getContractHolderIndex()].getScore();
+		toSet += " points.";
+		System.out.println(toSet);
+		aGUI.getPlayTable().setContractInfo(toSet);
+	}
+
+	/**
+	 * Handles robot bidding and deals out new hands to players as necessary. Must be called before humanBid() in
+	 * interactive mode.
+	 */
+	private void robotBids()
+	{
+		// Handles dealing and updates TablePlay.
+		aGameEngine.deal();
+		aGUI.getPlayTable().drawDeal();
+
+		// Begins the bidding stage.
+		aGameEngine.bid();
+		aGamePhase = 0;
+		aGUI.getPlayTable().setGameStage(aGamePhase);
+		
+		if(aGameEngine.getBids().length == 0){
+			System.out.println("Human goes first.");
+		}
+		else{
+			for(int i = 0; i<aGameEngine.getBids().length; i++){
+				System.out.println(aGameEngine.getPlayers().get(i).getName() + " bid " + aGameEngine.getBids()[i].toString());
+			}
+		}
+		
+		if (!aAutoMode)
+		{
+			aGUI.getPlayTable().setButtonVisibility("Bid", true);
+			aGUI.getPlayTable().setButtonVisibility("Pass", true);
+		}
+		else
+		{
+			/*aGUI.getPlayTable().setHandTrump(aGameEngine.getTrumpSuit());
+			aGUI.getPlayTable().setCardPanel(aGameEngine.getHand(0));
+			updateContractInfo();*/
+		}
+	}
+	
+	/**
+	 * Handles human card exchange when the human wins the contract.
+	 */
+	private void humanExchange()
+	{
+		CardList toDiscard = aGUI.getPlayTable().selectedCards();
+		
+		if(aGUI.getPlayTable().numSelected() == 6)
+		{
+			for(Card card : toDiscard)
+			{
+				aGUI.getPlayTable().discardFromPanel(card);
+			}
+
+			aGameEngine.exchange(toDiscard);
+			//Now in the playing phase.
+			aGUI.getPlayTable().setButtonVisibility("Exchange", false);
+			robotPlay();
+		}		
+	}
+	
+
+	/**
+	 * Checks if the human is making a valid bid or not.
+	 * 
+	 * @param pBid
+	 * @return True if the bid is valid, false if not.
+	 */
+	private boolean isValidBid(Bid pBid)
+	{
+		System.out.println("checking if the bid: " + pBid.toString() + " is valid");
+		if (pBid.isPass() || aGameEngine.getBids().length == 0 || Bid.max(aGameEngine.getBids()).isPass())
+		{
+			return true;
+		}
+		else
+		{
+			return pBid.toIndex() > Bid.max(aGameEngine.getBids()).toIndex();
+		}
+	}
+
+	/**
+	 * Begins running the game.
+	 */
+	private void runInteractiveGame()
+	{
+		robotBids();
+	}
+
+	private void editPlayers()
+	{
+		// Initializes players.
+		Player playerA = null;
+		Player playerB = null;
+		Player playerC = null;
+		Player playerD = null;
+
+		// Defines player 1.
+		if ("Random AI".equals(aPlayerTypes.get(0)))
+		{
+			playerA = new RandomRobot();
+		}
+		else if ("Basic AI".equals(aPlayerTypes.get(0)))
+		{
+			playerA = new BasicRobot();
+		}
+		else
+		{
+			playerA = new AdvancedRobot();
+		}
+
+		// Defines player 2.
+		if ("Random AI".equals(aPlayerTypes.get(1)))
+		{
+			playerB = new RandomRobot();
+		}
+		else if ("Basic AI".equals(aPlayerTypes.get(1)))
+		{
+			playerB = new BasicRobot();
+		}
+		else
+		{
+			playerB = new AdvancedRobot();
+		}
+
+		// Defines player 3.
+		if ("Random AI".equals(aPlayerTypes.get(2)))
+		{
+			playerC = new RandomRobot();
+		}
+		else if ("Basic AI".equals(aPlayerTypes.get(2)))
+		{
+			playerC = new BasicRobot();
+		}
+		else
+		{
+			playerC = new AdvancedRobot();
+		}
+
+		// Defines player 4.
+		if ("Random AI".equals(aPlayerTypes.get(3)))
+		{
+			playerD = new RandomRobot();
+		}
+		else if ("Basic AI".equals(aPlayerTypes.get(3)))
+		{
+			playerD = new BasicRobot();
+		}
+		else
+		{
+			playerD = new AdvancedRobot();
+		}
+
+		//Updates the player names.
+		playerA.setName(aPlayerNames.get(0));
+		playerB.setName(aPlayerNames.get(1));
+		playerC.setName(aPlayerNames.get(2));
+		playerD.setName(aPlayerNames.get(3));
+		
+		// Changes the players.
+		getGameEngine().changePlayer(playerA, 0);
+		getGameEngine().changePlayer(playerB, 1);
+		getGameEngine().changePlayer(playerC, 2);
+		getGameEngine().changePlayer(playerD, 3);
+
+		// Test if player 0 is changed properly
+		//System.out.println("Changed player 2 to: " + getGameEngine().getPlayer(1).getClass());
+	}
+
+	/**
+	 * Changes the location of the logfile to textbox input.
+	 */
+	private void changeLogLocation()
+	{
+		// Shows what the old location of the logger was.
+		System.out.println("Old Logger Location: " + aLoggerLocation);
+
+		// Takes the input from the user via dialog box
+		String tempLogFileLocation = JOptionPane.showInputDialog(null, "Please enter a new log file location: ",
+				"Log File Location", 1);
+
+		// Checks to see whether the input is valid and performs necessary action.
+		if (tempLogFileLocation != null)
+		{
+
+			// Checks that it ends with a .log
+			if (!tempLogFileLocation.endsWith(".log"))
+			{
+				JOptionPane.showMessageDialog(null, "The extension should be \".log\". Try again!", "Error", 1);
+				tempLogFileLocation = aLoggerLocation;
+			}
+
+			try
+			{
+				// Read from the old logger file
+				Scanner logIn = new Scanner(aLoggerLocation);
+
+				// Append to the beginning of the logger file.
+				aFstream = new FileWriter(tempLogFileLocation, true);
+				BufferedWriter logOut = new BufferedWriter(aFstream);
+
+				// Writes everything from the old to the new logger file.
+				while (logIn.hasNext())
+				{
+					logOut.write(logIn.next());
+				}
+
+				logOut.close();
+			}
+			catch (IOException pException)
+			{
+				JOptionPane.showMessageDialog(null, "Improper syntax for logger file location.", "Error", 1);
+				tempLogFileLocation = aLoggerLocation;
+			}
+
+			JOptionPane.showMessageDialog(null, "The new location is now: " + tempLogFileLocation, "Log File Location",
+					1);
+		}
+		else
+		{
+			JOptionPane.showMessageDialog(null, "No changes made. Default location and name.", "Log File Location", 1);
+		}
+
+		// Deletes the old logfile.
+		File toDelete = new File(aLoggerLocation);
+		toDelete.delete();
+
+		// Sets the logfile location to the inputed text.
+		aLoggerLocation = tempLogFileLocation;
+
+		// Prints the new location.
+		System.out.println("New Logger Location: " + aLoggerLocation);
+	}
+
+	/**
+	 * Toggles Automatic Mode on or off. TODO: This does nothing until we make the gameloop check it.
+	 */
+	private void toggleAutoMode()
+	{
+		setAutoMode(!getAutoMode());
+	}
+
+	/**
+	 * Creates a new GameEngine object based on the player specifications in TableSettings.
+	 */
+	private void setupNewGame()
+	{
+		//Makes all buttons on the table invisible.
+		aGUI.getPlayTable().allButtonsOff();
+		
+		// Initializes the logging framework.
+		aLogs = new Logger(this, aLoggingEnabled);
+
+		// Creates the game.
+		setGameEngine(new GameEngine(interactive, playerD));
+		editPlayers();
+		aGameEngine.addObserver(aLogs);
+		
+		//Constructs the GameStatistics Observer
+		aStats = new GameStatistics(this, playerA.getName(), playerB.getName(), playerC.getName(), playerD.getName());
+		aGameEngine.addObserver(aStats);
+		aGameEngine.resetGame();
+		// Starts the new round.
+		aGameEngine.newRound(true);
+		
+		setDealerChip();
+	}
+
+	/**
+	 * Resets the fields in TableSettings, clears the statistics file, and jumps to the new blank TableSettings card.
+	 */
+	private void jumpToBlankSetup()
+	{
+		clearFile(aStatsLocation);
+		aGUI.getSetupMenu().refreshPlayerNames();
+		aGUI.getSetupMenu().refreshPlayerTypes();
+		aGUI.getSetupMenu().setGameHasBegun(false);
+		jumpToView(0);
+	}
+
+	/**
+	 * Clears the file at the specified location.
+	 * 
+	 * @param pFileToClear
+	 *            the string representation of the file you want to clear.
+	 */
+	private void clearFile(String pFileToClear)
+	{
+		try
+		{
+			File statsFile = new File(pFileToClear);
+			statsFile.delete();
+			statsFile.createNewFile();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Jumps the Table View to the specified index.
+	 * 
+	 * @param pIndex
+	 *            sets the table view to the card with the index specified.
+	 */
+	private void jumpToView(int pIndex)
+	{
+		assert pIndex == 0 || pIndex == 1;
+		aGUI.getSetupMenu().refreshStatBox(this);
+		System.out.println("refresh stat box");
+		CardLayout cl = (CardLayout) (aGUI.getTable().getLayout());
+		cl.first(aGUI.getTable());
+		aTableView = 0;
+		while (aTableView != pIndex)
+		{
+			cl.next(aGUI.getTable());
+			aTableView += 1;
+		}
+		if (aTableView %2 == 0)
+		{
+		}
+
+	}
+
+	/**
+	 * Returns the names of the players.
+	 * 
+	 * @return the player names.
+	 */
+	public ArrayList<String> getPlayerNames()
+	{
+		return aPlayerNames;
+	}
+
+	/**
+	 * Returns the types of the players.
+	 * 
+	 * @return the player types.
+	 */
+	public ArrayList<String> getPlayerTypes()
+	{
+		return aPlayerTypes;
+	}
+	
+	/**
+	 * Returns the location of the Log file.
+	 * 
+	 * @return the log file location.
+	 */
+	public String getLoggerLocation()
+	{
+		return aLoggerLocation;
+	}
+
+	/**
+	 * Returns the location of the Stats file.
+	 * 
+	 * @return the stat file location.
+	 */
+	public String getStatsLocation()
+	{
+		return aStatsLocation;
+	}
+
+	/**
+	 * Getter method for aGameEngine.
+	 * 
+	 * @return aGameEngine
+	 */
+	public GameEngine getGameEngine()
+	{
+		return aGameEngine;
+	}
+
+	/**
+	 * Setter method for aAutoMode.
+	 * 
+	 * @return aAutoMode
+	 */
+	public boolean getAutoMode()
+	{
+		return aAutoMode;
+	}
+	
+	/**
+	 * Getter method for aStats.
+	 * 
+	 * @return aStats
+	 */
+	public GameStatistics getStats()
+	{
+		return aStats;
+	}
+
+	/**
+	 * Getter method for aTableView.
+	 * 
+	 * @return the value of aTableView.
+	 */
+	public int getTableView()
+	{
+		return aTableView;
+	}
+
+	/**
+	 * Gets the GUI.
+	 * @return	
+	 * 		The GUI.
+	 */
+	public FHGUI getGUI()
+	{
+		return aGUI;
+	}
+
+	/**
+	 * Setter method for aGameEngine.
+	 * 
+	 * @param pGameEngine
+	 *            the new value for aGameEngine.
+	 */
+	public void setGameEngine(GameEngine pGameEngine)
+	{
+		this.aGameEngine = pGameEngine;
+	}
+
+	/**
+	 * Setter method for aAutoMode.
+	 * 
+	 * @param pAutoMode
+	 *            the new value for aAutoMode.
+	 */
+	public void setAutoMode(boolean pAutoMode)
+	{
+		this.aAutoMode = pAutoMode;
+	}
+
+	/**
+	 * Setter method for aTableView.
+	 * 
+	 * @param pTableView
+	 *            the new value for aTableView.
+	 */
+	public void setTableView(int pTableView)
+	{
+		this.aTableView = pTableView;
+	}
+	
+	/**
+	 * Getter method for the game phase.
+	 * @return aGamePhase
+	 */
+	public int getGamePhase()
+	{
+		return aGamePhase;
+	}
+	
+	/**
+	 * Sets the leader chip in TablePlay.
+	 */
+	public void setLeaderChip()
+	{
+		aGUI.getPlayTable().setLeaderChip(aGameEngine.getLeaderIndex());
+	}
+	
+	/**
+	 * Sets the dealer chip in TablePlay.
+	 */
+	public void setDealerChip()
+	{
+		aGUI.getPlayTable().setDealerChip(aGameEngine.getDealerIndex());
+	}
+
+	/**
+	 * Ges the short-log file location.
+	 * @return
+	 */
+	public String getShortLogLocation()
+	{
+		return aShortLogLocation;
+	}
+	
+}

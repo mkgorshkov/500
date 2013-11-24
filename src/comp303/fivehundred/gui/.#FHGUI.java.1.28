@@ -1,0 +1,206 @@
+package comp303.fivehundred.gui;
+
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.EventQueue;
+import java.awt.Insets;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.JFrame;
+import javax.swing.JMenuBar;
+import javax.swing.JPanel;
+import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
+
+import comp303.fivehundred.engine.Logger;
+
+public class FHGUI extends JFrame
+{
+	// This is a serial ID. Stylecheck complains if we don't add this. TODO: Figure out what the hell is it for?!
+	private static final long serialVersionUID = 1L;
+	
+	// Sets whether or not loging is enabled.
+	private static final boolean aLoggerEnabled = false;
+	
+	// The GUIListener
+	private GUIListener god = new GUIListener(this);
+	
+	// The Table and it's Cards.
+	JPanel table = new JPanel(new CardLayout());
+	TableSetup card1 = new TableSetup(god);
+	TablePlay card2 = new TablePlay(god);
+	
+	// Defines the logger
+	private Logger aLogs;
+	
+	// The Menu Bar.
+	private JMenuBar menuBar = new MenuBar(god);
+	
+	// The Status Bar.
+	StatusBar statusBar = new StatusBar(god);
+
+	public FHGUI()
+	{
+		
+		
+		//////////////////////////////////////////////////////
+		// 	Sets up the core program resources and settings	//
+		//////////////////////////////////////////////////////
+		
+		// Sets the program properties. Adjusts Title, Size, Starting Position, Close Type, and Visibility.
+		setTitle("Five Hundred");
+		setSize(800, 500);
+		setLocationRelativeTo(null);
+		setDefaultCloseOperation(EXIT_ON_CLOSE);
+		setVisible(true);
+
+		// Creates the core panel of the entire program. Everything will eventually be contained within this. 
+		JPanel content = new JPanel(new BorderLayout());
+		
+		// Initializes the logging framework.
+		aLogs = new Logger(god, aLoggerEnabled);
+		
+		//////////////////////////////////////////////////////
+		// 		Sets up the SOUTH panel, for Player 1		//
+		//////////////////////////////////////////////////////
+		
+		// Creates the southmost panel, which contains the hand and icon containers for Player 1.
+		Box south = Box.createHorizontalBox();
+		JPanel southHand = new JPanel();
+		JPanel southIco = new JPanel();
+		
+		// Sets size and color properties for the various panels.
+		south.setPreferredSize(new Dimension(700, 150));
+		southIco.setBackground(Color.lightGray);
+		southIco.setPreferredSize(new Dimension(50,150));
+		
+		// Positions the Hand and Icon panels.
+		south.add(Box.createGlue());
+		south.add(southHand);
+		south.add(Box.createHorizontalStrut(5));
+		south.add(southIco);
+		south.add(Box.createGlue());
+		// Sets the actionlisteners to the south panel
+		TablePlay.setSouth(southHand);
+		
+		
+		//////////////////////////////////////////////////////
+		// 		Sets up the WEST panel, for Player 2		//
+		//////////////////////////////////////////////////////
+	
+		// Creates the westmost panel, which contains the hand and icon containers for Player 2.
+		Box west = Box.createVerticalBox();
+		JPanel westHand = new JPanel();
+		JPanel westIco = new JPanel();
+		
+		// Sets size and color properties for the various panels.
+		west.setPreferredSize(new Dimension(100, 400));
+		//westHand.setBackground(Color.darkGray);
+		westIco.setBackground(Color.lightGray);
+		
+		// Positions the Hand and Icon panels.
+		west.add(Box.createGlue());
+		west.add(westHand);
+		west.add(Box.createVerticalStrut(5));
+		west.add(westIco);
+		west.add(Box.createGlue());
+		TablePlay.setWest(westHand);
+
+		
+		//////////////////////////////////////////////////////
+		// 		Sets up the NORTH panel, for Player 3		//
+		//////////////////////////////////////////////////////
+	
+		// Creates the northmost panel, which contains the hand and icon containers for Player 3.
+		Box north = Box.createHorizontalBox();
+		JPanel northHand = new JPanel();
+		JPanel northIco = new JPanel();
+		
+		// Sets size and color properties for the various panels.
+		north.setPreferredSize(new Dimension(700, 150));
+		//northHand.setBackground(Color.darkGray);
+		northIco.setBackground(Color.lightGray);
+		
+		// Positions the Hand and Icon panels.
+		north.add(Box.createGlue());
+		north.add(northHand);
+		north.add(Box.createHorizontalStrut(5));
+		north.add(northIco);
+		north.add(Box.createGlue());
+		TablePlay.setNorth(northHand);
+
+		
+		//////////////////////////////////////////////////////
+		// 		Sets up the EAST panel, for Player 4		//
+		//////////////////////////////////////////////////////
+	
+		// Creates the eastmost panel, which contains the hand and icon containers for Player 4.
+		Box east = Box.createVerticalBox();
+		JPanel eastHand = new JPanel();
+		JPanel eastIco = new JPanel();
+		
+		// Sets size and color properties for the various panels.
+		east.setPreferredSize(new Dimension(100, 400));
+		//eastHand.setBackground(Color.darkGray);
+		eastIco.setBackground(Color.lightGray);
+		
+		// Positions the Hand and Icon panels.
+		east.add(Box.createGlue());
+		east.add(eastHand);
+		east.add(Box.createVerticalStrut(5));
+		east.add(eastIco);
+		east.add(Box.createGlue());
+		TablePlay.setEast(eastHand);
+
+		
+		//////////////////////////////////////////////////////
+		// 			Sets up the CENTER table				//
+		//////////////////////////////////////////////////////
+		
+		// Adjusts the table border
+		Border outline = BorderFactory.createLineBorder(Color.black);
+		table.setBorder(outline);
+		
+		// Adds the 2 modes to the central table.
+		table.add(card1, "greencard");
+		table.add(card2, "redempty");
+
+		
+		//////////////////////////////////////////////////////
+		// 		Setup over. Adds items where they belong.	//
+		//////////////////////////////////////////////////////
+		
+		// Now that we have created the 5 main containers, we add them all to the core panel "content"
+		content.add(north, BorderLayout.NORTH);
+		content.add(south, BorderLayout.SOUTH);
+		content.add(east, BorderLayout.EAST);
+		content.add(west, BorderLayout.WEST);
+		content.add(table, BorderLayout.CENTER);
+		content.setBorder(new EmptyBorder(new Insets(20, 20, 20, 20)));
+
+		// Adds the content panel to the main program window.
+		add(content);
+		
+		// Adds the status bar to the bottom.
+		getContentPane().add(statusBar, java.awt.BorderLayout.SOUTH);
+		
+		// Adds the menu bar to the program.
+		setJMenuBar(menuBar);
+
+		// Packs everything together to finish.
+		pack();
+	}
+
+	/**
+	 * Main method. Takes no arguments. Does nothing except construct the FHGUI object.
+	 * 
+	 * @param pArgs - arguments taken from console. Should be none.
+	 */
+	public static void main(String[] pArgs)
+	{
+		new FHGUI();
+	}
+}

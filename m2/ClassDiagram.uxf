@@ -1,0 +1,759 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<diagram program="umlet" version="11.5.1">
+  <zoom_level>10</zoom_level>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>470</x>
+      <y>530</y>
+      <w>100</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>JFrame</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>490</x>
+      <y>530</y>
+      <w>50</w>
+      <h>90</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>30;30;30;70</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>410</x>
+      <y>600</y>
+      <w>210</w>
+      <h>210</h>
+    </coordinates>
+    <panel_attributes>FHGUI
+--
+-SerialVersionUID : long
+-god : GUIListener
+table : JPanel
+tableSetup : TableSetup
+tablePlay : TablePlay
+-menuBar : JMenuBar
+logLine : StatusBar
+score : JLabel
+--
++FHGUI()
++main(pArgs : String[])</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>1420</x>
+      <y>40</y>
+      <w>320</w>
+      <h>830</h>
+    </coordinates>
+    <panel_attributes>GUIListener
+--
+-aLoggingEnabled : boolean
+-aLogs : Logger
+-aGameEngine : GameEngine
+-aGUI : FHGUI
+-aLoggerLocation : String
+-aStatsLocation : String
+-aAutoMode : boolean
+-aTableView : int
+-aStats : GameStatistics
+-aFstream : FileWriter
+-aPlayerNames : ArrayList&lt;String&gt;
+-aPlayerTypes : ArrayList&lt;String&gt;
+-aGamePhase : int
+--
++GUIListener(pGUI : FHGUI)
++actionPerformed(pEvent : ActionEvent)
+-humanPlay(pCard : Card)
+-updateScore()
+-robotPlay()
+-isValidPlay(pCard : Card) : boolean
+-humanBid(pBid : Bid)
+-updateContractInfo()
+-robotBids()
+-humanExchange()
+-isValidBid(pBid : Bid) : boolean
+-runInteractiveGame()
+-editPlayers()
+-changeLogLocation()
+-toggleAutoMode()
+-setupNewGame()
+-jumpToBlankSetup()
+-clearFile(pFileToClear : String)
+-jumpToView(pIndex : int)
++getPlayerNames() : ArrayList&lt;String&gt;
++getPlayerTypes() : ArrayList&lt;String&gt;
++getLoggerLocation() : String
++getStatsLocation() : String
++getGameEngine() : GameEngine
++getAutoMode() : boolean
++getStats() : GameStatistics
++getTableView() : int
++getGUI() : FHGUI
++setGameEngine(pGameEngine : GameEngine)
++setAutoMode(pAutoMode : boolean)
++setTableView(pTableView : int)
++getGamePhase() : int
++setLeaderChip()
++setDealerChip()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>410</x>
+      <y>880</y>
+      <w>210</w>
+      <h>140</h>
+    </coordinates>
+    <panel_attributes>MenuBar
+--
+-SerialVersionUID : long
+-god : GUIListener
+--
++MenuBar()
++MenuBar(pGod : GUIListener)
++getGod() : GUIListener
++setGod(pGod : GUIListener)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>0</x>
+      <y>390</y>
+      <w>310</w>
+      <h>750</h>
+    </coordinates>
+    <panel_attributes>TablePlay
+--
+-SerialVersionUID : long
+-OVERLAY : int
+-aObservers : List&lt;GameObserver&gt;
+-aGod : GUIListener
+-aHumanBid : Bid
+-a bunch of JButtons
+-aHumanBidOptions : String[]
+-aHumanSuitOptions : String[]
+-aTrickSelect : JComboBox
+-aSuitSelect : JComboBox
+-JPanels, JLabels, CardPanels
+4 Boxes
+--
++TablePlay(pGod : GUIListener)
++setSouth(pSouthHand : JPanel)
++setNorth(pNorthHand : JPanel)
++setWest(pWestHand : JPanel)
++setEast(pEastHand : JPanel)
++notifyHandGraphics(pIncludeSouth : boolean)
++drawDeal()
++setBidButtonVisibility(pFlag : boolean)
++setPassButtonVisibility(pFlag : boolean)
++setExchangebuttonVisibilitypFlag : boolean)
++setPlayButtonVisibility(pFlag : boolean)
++setNextTrickButtonVisibility(pFlag : boolean)
++setNextRoundButtonVisibility(pFlag : boolean)
++setEndRoundButtonVisibility(pFlag : boolean)
++showScore(pPanel : JPanel)
++getHumanBid() : Bid
++setGameStage(pGameStage : int)
++setCardPanel(pCards : CardList)
++sethandTrump(pTrump : Suit)
++discardFromPanel(pCard : Card)
++numSelected() : int
++getHumanTricks() : int
++getHumanSuit() : int
++setBidSelectVisibility(pFlag : boolean)
++updatePlayerNames(pPlayerNames : ArrayList&lt;String)
++setDealerChip(pPlayerIndex : int)
++setLeaderChip(pLeaderIndex : int)
++selectCards() : CardList
++setSpot(pIndex : int, pCard : Card)
++setContractInfo(pString : String)
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>720</x>
+      <y>790</y>
+      <w>210</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>StatusBar
+--
+-god : GUIListener
+--
++StatusBar(pGod : GUIListener)
++refresh()
++adjust(pWrite : String)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>720</x>
+      <y>430</y>
+      <w>320</w>
+      <h>300</h>
+    </coordinates>
+    <panel_attributes>TableSetup
+--
+-SerialVersionUID : long
+-PLAYERNAME_SIZE : int
+-Offsets for input positioning : int
+-aPlayerNames : JTextField[]
+-aPlayerTypes : JComboBox[]
+-aGameHasBegun : boolean
+-sStatTextBox : JTextArea
+-aEditPlayers : JButton
+--
++TableSetup(pGod : GUIListener)
++setGameHasBegun(pGameHasBegun : boolean)
++fillPlayerNames() : ArrayList&lt;String&gt;
++fillPlayerTypes() : ArrayList&lt;String&gt;
++getGameHasBegun() : boolean
++refreshStatBox(pGod GUIListener)
++refreshPlayerNames()
++refreshPlayerTypes()</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>400</x>
+      <y>450</y>
+      <w>100</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>JPanel</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>400</x>
+      <y>450</y>
+      <w>66</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+ 
+  2</panel_attributes>
+    <additional_attributes>40;150;40;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>550</x>
+      <y>780</y>
+      <w>50</w>
+      <h>120</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;</panel_attributes>
+    <additional_attributes>30;30;30;100</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>360</x>
+      <y>1030</y>
+      <w>100</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>JMenu</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>340</x>
+      <y>880</y>
+      <w>90</w>
+      <h>170</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+  2</panel_attributes>
+    <additional_attributes>70;50;40;50;40;150</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>450</x>
+      <y>820</y>
+      <w>100</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>JMenuBar</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>480</x>
+      <y>820</y>
+      <w>50</w>
+      <h>80</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>30;30;30;60</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>770</x>
+      <y>740</y>
+      <w>100</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>JLabel</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>840</x>
+      <y>740</y>
+      <w>100</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>30;30;80;30;80;50</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>470</x>
+      <y>430</y>
+      <w>270</w>
+      <h>60</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>30;40;70;40;70;30;250;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>590</x>
+      <y>740</y>
+      <w>150</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;</panel_attributes>
+    <additional_attributes>30;30;90;30;90;80;130;80</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>630</x>
+      <y>670</y>
+      <w>160</w>
+      <h>110</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+
+     2</panel_attributes>
+    <additional_attributes>90;30;40;30;40;90;140;90</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>580</x>
+      <y>480</y>
+      <w>100</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>JTextField</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>580</x>
+      <y>540</y>
+      <w>100</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>JComboBox</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>650</x>
+      <y>500</y>
+      <w>90</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+ 
+ 
+4</panel_attributes>
+    <additional_attributes>70;50;30;50</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>650</x>
+      <y>440</y>
+      <w>90</w>
+      <h>108</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+ 
+ 
+4</panel_attributes>
+    <additional_attributes>70;50;30;50</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>590</x>
+      <y>600</y>
+      <w>150</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=.&gt;</panel_attributes>
+    <additional_attributes>30;30;130;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>280</x>
+      <y>460</y>
+      <w>160</w>
+      <h>160</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;30;140;30;140;140</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>280</x>
+      <y>400</y>
+      <w>180</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>160;50;160;30;70;30;30;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>330</x>
+      <y>280</y>
+      <w>130</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>fivehundred util and
+ model classes</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>130</x>
+      <y>270</y>
+      <w>220</w>
+      <h>140</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>200;30;30;30;30;120</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>280</x>
+      <y>410</y>
+      <w>140</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+1</panel_attributes>
+    <additional_attributes>30;50;120;50</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>330</x>
+      <y>560</y>
+      <w>70</w>
+      <h>30</h>
+    </coordinates>
+    <panel_attributes>Box</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>280</x>
+      <y>480</y>
+      <w>106</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+4</panel_attributes>
+    <additional_attributes>30;50;80;50;80;80</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>590</x>
+      <y>50</y>
+      <w>550</w>
+      <h>370</h>
+    </coordinates>
+    <panel_attributes>CardPanel
+--
+-INSET : int
+-aVisible : boolean
+-aHorizontal : boolean
+-aGameStage : int
+-aTrump : Suit
+-aGUIListener : GUIListener
+-aCards : HashMap&lt;JLabel, Card&gt;
+--
++CardPanel(pVisibleCards : boolean, pHor : int, pVer : int)
++CardPanel(pVisibleCards : boolean, pHor : int, pVer : int, pGUIListener : GUIListener)
++setTitle(title : String)
+-initialize(pCards : CardList)
+-popAllDown()
++isUp() : Card
++numUp() : int
++getSelectedCards() : CardList
++setGameStage(pGameStage : int)
++setTrumpSuit(pTrump : Suit)
++setVisible(pVisible : boolean)
++newHand(pNewHand : CardList)
++discard(pCard : Card)
+
+</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>1190</x>
+      <y>320</y>
+      <w>210</w>
+      <h>70</h>
+    </coordinates>
+    <panel_attributes>&lt;I&gt; GameObserver
+--
+newHand(pNewHand : CardList)
+discard(pCard : Card)</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>1110</x>
+      <y>330</y>
+      <w>100</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>80;30;30;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>450</x>
+      <y>390</y>
+      <w>190</w>
+      <h>80</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;-</panel_attributes>
+    <additional_attributes>30;60;30;40;170;40;170;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>430</x>
+      <y>270</y>
+      <w>180</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;30;160;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>270</x>
+      <y>310</y>
+      <w>340</w>
+      <h>100</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;80;30;30;320;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>840</x>
+      <y>390</y>
+      <w>302</w>
+      <h>380</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;&lt;&lt;-
+     1...16</panel_attributes>
+    <additional_attributes>260;30;260;360;30;360</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>1210</x>
+      <y>180</y>
+      <w>100</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>Overlap
+Layout</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>1110</x>
+      <y>170</y>
+      <w>120</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>100;30;30;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>290</x>
+      <y>230</y>
+      <w>120</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>fivehundred ai and
+engine classes</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>410</x>
+      <y>10</y>
+      <w>1030</w>
+      <h>290</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;270;30;30;940;30;940;260;1010;260</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>320</x>
+      <y>0</y>
+      <w>1120</w>
+      <h>250</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;230;30;30;1050;30;1050;230;1100;230</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>590</x>
+      <y>590</y>
+      <w>850</w>
+      <h>360</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;200;50;200;50;340;730;340;730;30;830;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>590</x>
+      <y>620</y>
+      <w>850</w>
+      <h>340</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;320;750;320;750;30;830;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>900</x>
+      <y>550</y>
+      <w>540</w>
+      <h>310</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;290;400;290;400;30;520;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>280</x>
+      <y>660</y>
+      <w>1160</w>
+      <h>430</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;410;1070;410;1070;30;1140;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>1010</x>
+      <y>370</y>
+      <w>430</w>
+      <h>230</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;210;240;210;240;30;410;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>1110</x>
+      <y>260</y>
+      <w>330</w>
+      <h>50</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;.</panel_attributes>
+    <additional_attributes>30;30;310;30</additional_attributes>
+  </element>
+  <element>
+    <type>com.umlet.element.Class</type>
+    <coordinates>
+      <x>1110</x>
+      <y>610</y>
+      <w>100</w>
+      <h>40</h>
+    </coordinates>
+    <panel_attributes>&lt;I&gt;
+ActionListener</panel_attributes>
+    <additional_attributes/>
+  </element>
+  <element>
+    <type>com.umlet.element.Relation</type>
+    <coordinates>
+      <x>1180</x>
+      <y>470</y>
+      <w>260</w>
+      <h>180</h>
+    </coordinates>
+    <panel_attributes>lt=&lt;&lt;.</panel_attributes>
+    <additional_attributes>30;160;90;160;90;30;240;30</additional_attributes>
+  </element>
+</diagram>

@@ -1,0 +1,753 @@
+package comp303.fivehundred.gui;
+
+import java.awt.CardLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import javax.swing.JOptionPane;
+
+import comp303.fivehundred.ai.AdvancedRobot;
+import comp303.fivehundred.ai.BasicRobot;
+import comp303.fivehundred.ai.HumanPlayer;
+import comp303.fivehundred.ai.Player;
+import comp303.fivehundred.ai.RandomRobot;
+import comp303.fivehundred.engine.GameEngine;
+import comp303.fivehundred.engine.GameStatistics;
+import comp303.fivehundred.engine.Logger;
+import comp303.fivehundred.model.*;
+import comp303.fivehundred.util.*;
+
+/**
+ * GUI handler for ActionListener. Takes the events that are specified by getActionCommand() and performs the action
+ * which is intended.
+ * 
+ * @author Maxim Gorshkov, Dashiel Siegel, James McCorriston, Andrew Borodovski
+ * 
+ */
+public class GUIListener implements ActionListener
+{
+	// Sets whether logger is enabled for this session
+	private final boolean aLoggingEnabled = true;
+
+	// Defines the logger
+	private Logger aLogs;
+	private GameStatistics aStats;
+
+	// The GameEngine Object
+	private GameEngine aGameEngine = null;
+
+	// The GUI attached to this listener.
+	private FHGUI aGUI;
+
+	// Game Settings
+	// Sets the default location for the logger output.
+	private String aLoggerLocation = "miscFiles/transcript.log";
+	// Sets the default location for the statistics output.
+	private String aStatsLocation = "miscFiles/stats.txt";
+	// Sets the default location for the statistics output.
+	private String aShortLogLocation = "miscFiles/log.txt";
+
+	private int aTableView = 0;
+	
+
+	// Sets the writer for when the old log file gets copied
+	private FileWriter aFstream;
+
+	// Player Settings
+	private ArrayList<String> aPlayerNames = new ArrayList<String>();
+	private ArrayList<String> aPlayerTypes = new ArrayList<String>();
+
+
+	// Keeps track of the current state of play: 0 = bidding, 1 = exchanging, 2 = playing.
+	private int aGamePhase = 0;
+
+	// Constructor
+	/**
+	 * Constructor for the GUIListener.
+	 * @param pGUI
+	 * 		The main constructor method.
+	 */
+	public GUIListener(FHGUI pGUI)
+	{
+		super();
+		aGUI = pGUI;
+		aStats = new GameStatistics();
+		aLogs = new Logger(aLoggingEnabled);
+		
+	}
+
+	// Based on the signature in getActionCommand() branches to action which needs to be performed
+	/**
+	 * Performs event-handling for all clickable objects. Selects an action to perform based on pEvent.
+	 * 
+	 * @param pEvent
+	 *            The event that triggers this method being called.
+	 */
+	public void actionPerformed(ActionEvent pEvent)
+	{		
+		//Ends the game.
+		if (pEvent.getActionCommand().equals("End Game"))
+		{
+			jumpToView(0);
+			//aGameEngine.resetGame();
+		//	aGUI.refreshScore(aGameEngine);
+			aGUI.getPlayTable().setButtonVisibility("End Game", false);
+			
+		}
+		
+		//Automatically makes a bid for the human
+		else if (pEvent.getActionCommand().equals("Auto Bid"))
+		{
+			aGameEngine.supportBid();
+			//Checks if a contract has been made.
+			if (aGameEngine.allPasses())
+			{
+				aGameEngine.newRound(false);
+				aGameEngine.deal();
+				aGameEngine.bid();
+			}
+			else
+			{
+				//If one of the robots won the contract, they exchange now.
+				if(!(aGameEngine.getContractHolderIndex() == 0))
+				{
+					aGameEngine.exchange();
+				}
+			}
+		}
+		
+		//Automatically exchanges cards for the human
+		else if (pEvent.getActionCommand().equals("Auto Exchange"))
+		{
+			aGameEngine.supportExchange();
+		}
+		
+		//Automatically plays a card for the human
+		else if (pEvent.getActionCommand().equals("Auto Play"))
+		{
+			aGameEngine.supportPlay();
+		}
+		
+		//Changes the location of the statistics file
+		else if (pEvent.getActionCommand().equals("Change Statistics File Location"))
+		{
+			changeStatLocation();
+		}
+
+		// Exits the program.
+		else if (pEvent.getActionCommand().equals("Exit"))
+		{
+			System.exit(0);
+		}
+
+		// Returns the player to TableSetup.
+		else if (pEvent.getActionCommand().equals("Return To Setup"))
+		{
+			jumpToView(0);
+			System.out.println("Return To Setup");
+		}
+
+		// Returns the player to TableSetup and resets all the fields.
+		else if (pEvent.getActionCommand().equals("New Game"))
+		{
+			//Removes any displayed cards from the table.
+			for(int i = 0; i<4; i++)
+			{
+				aGUI.getPlayTable().setSpot(i, null);
+			}
+			aGUI.getPlayTable().setHandTrump(null);
+			jumpToBlankSetup();
+		}
+
+		// Returns the player to TableSetup and resets all the fields.
+		else if (pEvent.getActionCommand().equals("Reset Stats"))
+		{
+			String statLocation = aStats.getFileLocation();
+			
+			// Clears the stats file
+			clearFile(statLocation);
+
+			aStats = new GameStatistics();
+			
+			try
+			{
+				aStats.moveFileLocation(statLocation);
+			}
+			catch (IOException e)
+			{
+			}
+			
+			
+			// Refreshses the text box in TableStats
+			aGUI.getSetupMenu().refreshStatBox(this);
+			
+		}
+
+		// Reads the player names and types from TableSettings. Stores them, creates a GameObject, and jumps to
+		// TablePlay.
+		else if (pEvent.getActionCommand().equals("Setup New Game"))
+		{			
+			// Sets player names and types from TableSetup specifications.
+			aPlayerNames = aGUI.getSetupMenu().fillPlayerNames();
+			aPlayerTypes = aGUI.getSetupMenu().fillPlayerTypes();
+	
+			// Truncates the names as neccessary tabulation
+			for (int i = 0; i<4; i++)
+			{
+				if (aPlayerNames.get(i).length() > 13)
+				{
+					String toSet = aPlayerNames.get(i).substring(0, 10);
+					toSet += "...";
+					aPlayerNames.set(i, toSet);
+				}
+			}
+			
+			setupNewGame();
+			setupNewRound();
+			jumpToView(1);
+			aGUI.getSetupMenu().setGameHasBegun(true);
+			
+			// Sets up the new game and jumps to TablePlay.
+			// Begins running the game.
+			aGameEngine.bid();
+			
+		}
+
+		// Change the logger location.
+		else if (pEvent.getActionCommand().equals("Change Log Location"))
+		{
+			changeLogLocation();
+			System.out.println("Change Log Location");
+		}
+
+		else if (pEvent.getActionCommand().equals("Bid"))
+		{
+			humanBid(aGUI.getPlayTable().getHumanBid());
+		}
+		else if(pEvent.getActionCommand().equals("Pass"))
+		{
+			humanBid(new Bid());
+		}
+		else if (pEvent.getActionCommand().equals("Exchange"))
+		{
+			humanExchange();
+		}
+		else if(pEvent.getActionCommand().equals("Play"))
+		{
+			if(aGUI.getPlayTable().numSelected() == 1)
+			{
+				humanPlay(aGUI.getPlayTable().selectedCards().getFirst());
+			}
+		}
+		else if(pEvent.getActionCommand().equals("Next Trick"))
+		{
+			aGUI.getPlayTable().setButtonVisibility("Next Trick", false);
+			aGameEngine.playTrick();
+		}
+		else if(pEvent.getActionCommand().equals("Start Round"))
+		{
+			aGameEngine.playTrick();
+		}
+		else if(pEvent.getActionCommand().equals("Show Statistics"))
+		{
+			System.out.println("Show statistics.");
+		}
+		else if(pEvent.getActionCommand().equals("End Round"))
+		{
+			aGameEngine.computeScore();
+		}
+		else if(pEvent.getActionCommand().equals("Next Round"))
+		{
+			setupNewRound();
+			aGameEngine.bid();
+		}
+		else if(pEvent.getActionCommand().equals("Toggle Hand Visibility"))
+		{
+			aGameEngine.setOpenHands(!aGameEngine.getOpenHands());
+		}
+	}
+
+	/**
+	 * Handles the human play on to the trick. The card selection is made in CardPanel (the
+	 * action is handled in CardPanel as well) and this method is called from there.
+	 * 
+	 * @param pCard The card chosen to be played.
+	 */
+	private void humanPlay(Card pCard)
+	{
+		if (isValidPlay(pCard))
+		{
+			aGameEngine.playTrick(pCard);
+		}
+		else
+		{
+			JOptionPane.showMessageDialog(null, "Illegal move. Please play a different card.", "Error", 1);
+		}
+	}
+	
+	private boolean isValidPlay(Card pCard)
+	{
+		return aGameEngine.getHand(0).playableCards(aGameEngine.getTrick().getSuitLed(),
+				aGameEngine.getTrick().getTrumpSuit()).contains(pCard);
+	}
+
+	/**
+	 * Handles human bidding when applicable (can only be called by the Human Bid button in TablePlay, which is 
+	 * only visible when human bidding is applicable.
+	 * 
+	 * @param pBid
+	 *            The Human's Bid.
+	 */
+	private void humanBid(Bid pBid)
+	{
+		if (isValidBid(pBid))
+		{
+			aGameEngine.bid(pBid);
+			
+			//Checks if a contract has been made.
+			if (aGameEngine.allPasses())
+			{
+				aGameEngine.newRound(false);
+				aGameEngine.deal();
+				aGameEngine.bid();
+			}
+			else
+			{
+				//If one of the robots won the contract, they exchange now.
+				if(!(aGameEngine.getContractHolderIndex() == 0))
+				{
+					aGameEngine.exchange();
+				}
+			}
+		}
+		else
+		{
+			JOptionPane.showMessageDialog(null, "Illegal bid. Try again!", "Error", 1);
+		}
+	}
+	
+	/**
+	 * Handles human card exchange when the human wins the contract.
+	 */
+	private void humanExchange()
+	{
+		CardList toDiscard = aGUI.getPlayTable().selectedCards();
+		
+		if(aGUI.getPlayTable().numSelected() == 6)
+		{
+			for(Card card : toDiscard)
+			{
+				aGUI.getPlayTable().discardFromPanel(card);
+			}
+
+			aGameEngine.exchange(toDiscard);
+		}		
+	}
+	
+
+	/**
+	 * Checks if the human is making a valid bid or not.
+	 * 
+	 * @param pBid
+	 * @return True if the bid is valid, false if not.
+	 */
+	private boolean isValidBid(Bid pBid)
+	{
+		if (pBid.isPass() || aGameEngine.getBids().length == 0 || Bid.max(aGameEngine.getBids()).isPass())
+		{
+			return true;
+		}
+		else
+		{
+			return pBid.toIndex() > Bid.max(aGameEngine.getBids()).toIndex();
+		}
+	}
+
+	private void editPlayers()
+	{
+		// Declares the players.
+		Player playerA;
+		Player playerB;
+		Player playerC;
+		Player playerD;
+
+		// Defines player 1.
+		if ("Human".equals(aPlayerTypes.get(0)))
+		{
+			playerA = new HumanPlayer();
+		}
+		else if ("Random AI".equals(aPlayerTypes.get(0)))
+		{
+			playerA = new RandomRobot();
+		}
+		else if ("Basic AI".equals(aPlayerTypes.get(0)))
+		{
+			playerA = new BasicRobot();
+		}
+		else
+		{
+			playerA = new AdvancedRobot();
+		}
+
+		// Defines player 2.
+		if ("Random AI".equals(aPlayerTypes.get(1)))
+		{
+			playerB = new RandomRobot();
+		}
+		else if ("Basic AI".equals(aPlayerTypes.get(1)))
+		{
+			playerB = new BasicRobot();
+		}
+		else
+		{
+			playerB = new AdvancedRobot();
+		}
+
+		// Defines player 3.
+		if ("Random AI".equals(aPlayerTypes.get(2)))
+		{
+			playerC = new RandomRobot();
+		}
+		else if ("Basic AI".equals(aPlayerTypes.get(2)))
+		{
+			playerC = new BasicRobot();
+		}
+		else
+		{
+			playerC = new AdvancedRobot();
+		}
+
+		// Defines player 4.
+		if ("Random AI".equals(aPlayerTypes.get(3)))
+		{
+			playerD = new RandomRobot();
+		}
+		else if ("Basic AI".equals(aPlayerTypes.get(3)))
+		{
+			playerD = new BasicRobot();
+		}
+		else
+		{
+			playerD = new AdvancedRobot();
+		}
+
+		//Updates the player names.
+		playerA.setName(aPlayerNames.get(0));
+		playerB.setName(aPlayerNames.get(1));
+		playerC.setName(aPlayerNames.get(2));
+		playerD.setName(aPlayerNames.get(3));
+		
+		// Changes the players.
+		aGameEngine.changePlayer(playerA, 0);
+		aGameEngine.changePlayer(playerB, 1);
+		aGameEngine.changePlayer(playerC, 2);
+		aGameEngine.changePlayer(playerD, 3);
+		
+		aGameEngine.addObserver(playerA);
+		aGameEngine.addObserver(playerB);
+		aGameEngine.addObserver(playerC);
+		aGameEngine.addObserver(playerD);
+
+		// Test if player 0 is changed properly
+		//System.out.println("Changed player 2 to: " + getGameEngine().getPlayer(1).getClass());
+	}
+	
+	/**
+	 * Changes the location of the statfile to textbox input.
+	 */
+	private void changeStatLocation()
+	{
+		// Obtains the old file location.
+		String oldFileLocation = aStats.getFileLocation();
+		System.out.println("Old StatFile Location:" + oldFileLocation);
+
+		// Obtains the new file location
+		String newFileLocation = JOptionPane.showInputDialog(null, "Please enter a new stat file location: ",
+				"Stat File Location", JOptionPane.QUESTION_MESSAGE);
+		
+		System.out.println();
+		
+		if (newFileLocation != null)
+		{
+			if (!newFileLocation.endsWith(".txt") || newFileLocation.startsWith(".") ||
+					newFileLocation.startsWith("\\") || newFileLocation.startsWith("/"))
+			{
+				// The input has a bad extension.
+				JOptionPane.showMessageDialog(null, "The extension should be in the form: " +
+						"\"<filename>.txt\". Try again!", "Error", JOptionPane.ERROR_MESSAGE);
+				newFileLocation = aStats.getFileLocation();
+			}
+			else
+			{
+				try
+				{
+					aStats.moveFileLocation(newFileLocation);
+				}
+				catch (IOException pException)
+				{
+					JOptionPane.showMessageDialog(null, "Improper syntax for logger file location.", "Error", JOptionPane.ERROR_MESSAGE);
+					newFileLocation = aStats.getFileLocation();
+				}
+				JOptionPane.showMessageDialog(null, "The new location is now: " + newFileLocation, "Stat File Location",
+						1);
+			}
+		}	
+		else
+		{
+			// The input is null, popup error.
+			JOptionPane.showMessageDialog(null, "Improper syntax for logger file location.", "Error", JOptionPane.ERROR_MESSAGE);
+		}
+		
+		System.out.println("New StatFile Location: " + oldFileLocation);
+	}
+
+	/**
+	 * Changes the location of the logfile to textbox input.
+	 */
+	private void changeLogLocation()
+	{
+		// Shows what the old location of the logger was.
+		System.out.println("Old Logger Location: " + aLoggerLocation);
+
+		// Takes the input from the user via dialog box
+		String tempLogFileLocation = JOptionPane.showInputDialog(null, "Please enter a new log file location: ",
+				"Log File Location", JOptionPane.INFORMATION_MESSAGE);
+
+		// Checks to see whether the input is valid and performs necessary action.
+		if (tempLogFileLocation != null)
+		{
+
+			// Checks that it ends with a .log
+			if (!tempLogFileLocation.endsWith(".log"))
+			{
+				JOptionPane.showMessageDialog(null, "The extension should be \".log\". Try again!", "Error", 1);
+				tempLogFileLocation = aLoggerLocation;
+			}
+
+			try
+			{
+				// Append to the beginning of the logger file.
+				aFstream = new FileWriter(tempLogFileLocation, true);
+				BufferedWriter logOut = new BufferedWriter(aFstream);
+				logOut.close();
+				
+				aLogs.moveFileLocation(tempLogFileLocation);
+				
+			}
+			catch (IOException pException)
+			{
+				JOptionPane.showMessageDialog(null, "Improper syntax for logger file location.", "Error", 1);
+				tempLogFileLocation = aLoggerLocation;
+			}
+
+			JOptionPane.showMessageDialog(null, "The new location is now: " + tempLogFileLocation, "Log File Location",
+					1);
+		}
+		else
+		{
+			JOptionPane.showMessageDialog(null, "No changes made. Default location and name.", "Log File Location", 1);
+		}
+
+		aLoggerLocation = tempLogFileLocation;
+
+		// Prints the new location.
+		System.out.println("New Logger Location: " + aLoggerLocation);
+	}
+
+	/**
+	 * Creates a new GameEngine object based on the player specifications in TableSettings.
+	 */
+	private void setupNewGame()
+	{
+
+		// Creates the game.
+		aGameEngine = new GameEngine(true);
+		
+		aGameEngine.addObserver(aLogs);
+		
+		//Constructs the GameStatistics Observer
+		aGameEngine.addObserver(aStats);
+		
+		aGameEngine.addObserver(aGUI);
+		editPlayers();
+		
+		aGameEngine.resetGame();
+	}
+	
+	/**
+	 * Sets up a new round and deals out hands to all players.
+	 */
+	private void setupNewRound()
+	{
+		// Starts the new round.
+		aGameEngine.newRound(true);
+		aGameEngine.deal();
+	}
+
+	/**
+	 * Resets the fields in TableSettings, clears the statistics file, and jumps to the new blank TableSettings card.
+	 */
+	private void jumpToBlankSetup()
+	{
+		
+		aStats.printStatisticsFile();
+		aGUI.getSetupMenu().refreshPlayerNames();
+		aGUI.getSetupMenu().refreshPlayerTypes();
+		aGUI.getSetupMenu().setGameHasBegun(false);
+		jumpToView(0);
+	}
+
+	/**
+	 * Clears the file at the specified location.
+	 * 
+	 * @param pFileToClear
+	 *            the string representation of the file you want to clear.
+	 */
+	private void clearFile(String pFileToClear)
+	{
+		try
+		{
+			File statsFile = new File(pFileToClear);
+			statsFile.delete();
+			statsFile.createNewFile();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Jumps the Table View to the specified index.
+	 * 
+	 * @param pIndex
+	 *            sets the table view to the card with the index specified.
+	 */
+	private void jumpToView(int pIndex)
+	{
+		assert pIndex == 0 || pIndex == 1;
+		aGUI.getSetupMenu().refreshStatBox(this);
+		CardLayout cl = (CardLayout) (aGUI.getTable().getLayout());
+		cl.first(aGUI.getTable());
+		aTableView = 0;
+		if (pIndex == 1)
+		{
+			cl.next(aGUI.getTable());
+			aTableView = 1;
+		}
+
+	}
+
+	/**
+	 * Returns the names of the players.
+	 * 
+	 * @return the player names.
+	 */
+	public ArrayList<String> getPlayerNames()
+	{
+		return aPlayerNames;
+	}
+
+	/**
+	 * Returns the types of the players.
+	 * 
+	 * @return the player types.
+	 */
+	public ArrayList<String> getPlayerTypes()
+	{
+		return aPlayerTypes;
+	}
+	
+	/**
+	 * Returns the location of the Log file.
+	 * 
+	 * @return the log file location.
+	 */
+	public String getLoggerLocation()
+	{
+		return aLoggerLocation;
+	}
+
+	/**
+	 * Returns the location of the Stats file.
+	 * 
+	 * @return the stat file location.
+	 */
+	public String getStatsLocation()
+	{
+		return aStatsLocation;
+	}
+
+	/**
+	 * Getter method for aGameEngine.
+	 * 
+	 * @return aGameEngine
+	 */
+	public GameEngine getGameEngine()
+	{
+		return aGameEngine;
+	}
+	
+	/**
+	 * Getter method for aStats.
+	 * 
+	 * @return aStats
+	 */
+	public GameStatistics getStats()
+	{
+		return aStats;
+	}
+
+	/**
+	 * Getter method for aTableView.
+	 * 
+	 * @return the value of aTableView.
+	 */
+	public int getTableView()
+	{
+		return aTableView;
+	}
+
+	/**
+	 * Gets the GUI.
+	 * @return	
+	 * 		The GUI.
+	 */
+	public FHGUI getGUI()
+	{
+		return aGUI;
+	}
+
+	/**
+	 * Setter method for aTableView.
+	 * 
+	 * @param pTableView
+	 *            the new value for aTableView.
+	 */
+	public void setTableView(int pTableView)
+	{
+		this.aTableView = pTableView;
+	}
+	
+	/**
+	 * Getter method for the game phase.
+	 * @return aGamePhase
+	 */
+	public int getGamePhase()
+	{
+		return aGamePhase;
+	}
+	/**
+	 * Gets the short-log file location.
+	 * @return short-form log location
+	 */
+	public String getShortLogLocation()
+	{
+		return aShortLogLocation;
+	}
+	
+}
